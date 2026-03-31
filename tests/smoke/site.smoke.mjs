@@ -76,7 +76,9 @@ test("smoke — home, about and post modal render and stay interactive", { timeo
     const aboutName = await page.textContent("#page-about.active .about-name");
     assert.equal(aboutName?.trim(), "Anatoli Tsikhamirau");
 
-    await page.locator('[data-page="home"]').click({ timeout: 5000 });
+    // There are two elements with data-page="home" now: the logo and the Blog nav link.
+    // Pick the actual Blog link so Playwright strict mode does not trip over the duplicate.await
+    page.getByRole("link", { name: "Blog" }).click({ timeout: 5000 });
     await page.waitForSelector("#page-home.active #postsGrid .post-card", { timeout: 5000 });
     await page.locator("#postsGrid .post-card").first().click({ timeout: 5000 });
     await page.waitForSelector("#modalOverlay.open .modal-title", { timeout: 5000 });
