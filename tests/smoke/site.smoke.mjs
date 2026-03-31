@@ -70,24 +70,24 @@ test("smoke — home, about and post modal render and stay interactive", { timeo
     const heroText = await page.textContent(".hero h1");
     assert.match(heroText || "", /Build\. Break\. Write it down\./);
 
-    const aboutLink = page.locator('[data-page="about"]');
+    const aboutLink = page.getByRole("link", { name: "About" });
     await aboutLink.click({ timeout: 5000 });
     await page.waitForSelector("#page-about.active .about-name", { timeout: 5000 });
     const aboutName = await page.textContent("#page-about.active .about-name");
     assert.equal(aboutName?.trim(), "Anatoli Tsikhamirau");
 
-    // There are two elements with data-page="home" now: the logo and the Blog nav link.
-    // Pick the actual Blog link so Playwright strict mode does not trip over the duplicate.await
-    page.getByRole("link", { name: "Blog" }).click({ timeout: 5000 });
+    // There are two elements that navigate home: the logo and the Blog link.
+    // Use the visible Blog nav link so Playwright strict mode stays happy.
+    await page.getByRole("link", { name: "Blog" }).click({ timeout: 5000 });
     await page.waitForSelector("#page-home.active #postsGrid .post-card", { timeout: 5000 });
     await page.locator("#postsGrid .post-card").first().click({ timeout: 5000 });
     await page.waitForSelector("#modalOverlay.open .modal-title", { timeout: 5000 });
 
-    const toggleComments = page.locator("#toggleComments");
+    const toggleComments = page.getByRole("button", { name: /show \/ hide comments|show comments|hide comments/i });
     await toggleComments.click({ timeout: 5000 });
     await page.waitForSelector("#commentsSection:not(.comments-hidden)", { timeout: 5000 });
 
-    const closeBtn = page.locator("#modalClose");
+    const closeBtn = page.getByRole("button", { name: /close post|close/i }).first();
     await closeBtn.click({ timeout: 5000 });
     await page.waitForFunction(() => !document.getElementById("modalOverlay")?.classList.contains("open"), { timeout: 5000 });
 
