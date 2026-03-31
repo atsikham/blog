@@ -1,0 +1,36 @@
+<svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }</style>
+    <marker id="arr" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto">
+      <path d="M2,2 L11,7 L2,12" fill="none" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="880" height="340" fill="#f8f9fa"/>
+
+  <circle cx="180" cy="185" r="100" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+  <text x="180" y="178" text-anchor="middle" font-size="18" font-weight="700">outside</text>
+  <text x="180" y="203" text-anchor="middle" font-size="14" fill="#1e1e2e">code block</text>
+
+  <circle cx="660" cy="185" r="100" fill="#fff9db" stroke="#e67700" stroke-width="2"/>
+  <text x="660" y="178" text-anchor="middle" font-size="18" font-weight="700">inside</text>
+  <text x="660" y="203" text-anchor="middle" font-size="14" fill="#1e1e2e">code block</text>
+
+  <!-- outside → inside (top arc): label before path -->
+  <text x="420" y="60" text-anchor="middle" font-size="15" fill="#1e1e2e">line starts with ```lang</text>
+  <path d="M268,140 C340,72 500,68 572,140" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <!-- inside → outside (bottom arc): label before path -->
+  <text x="420" y="328" text-anchor="middle" font-size="14" fill="#1e1e2e">line is exactly ``` — close fence</text>
+  <path d="M572,230 C500,302 340,306 268,230" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <!-- self-loop outside: label before path -->
+  <text x="18" y="30" font-size="14" fill="#1e1e2e">other line</text>
+  <text x="18" y="50" font-size="14" fill="#1e1e2e">→ push</text>
+  <path d="M120,98 C66,40 88,8 126,30 C152,46 158,78 122,94" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <!-- self-loop inside: label before path -->
+  <text x="746" y="30" font-size="14" fill="#1e1e2e">other line</text>
+  <text x="746" y="50" font-size="14" fill="#1e1e2e">→ accumulate</text>
+  <path d="M718,98 C772,40 750,8 712,30 C686,46 680,78 716,94" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+</svg>
+

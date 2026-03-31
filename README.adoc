@@ -1,0 +1,261 @@
+= tikho.me
+
+Personal blog — platform engineering, Go, Kubernetes, and whatever else I end up writing about.
+Vanilla HTML/CSS/JS on the frontend, deployed to S3 + CloudFront, with a small Python Lambda for likes, reads and comments.
+
+Live at https://tikho.me.
+
+== what it does
+
+* posts in Markdown or AsciiDoc — drop a file in `src/posts/`, add one line to `manifest.json`
+* likes, comments, reply threads, and read counts — stored in `localStorage` locally, synced to DynamoDB when the backend is deployed
+* tag filtering (multi-select) and search
+* dark/light theme
+* PDF export for any post
+* animated background with k8s wheels, terminal windows, server racks, git graphs
+* hash-based routing — refreshing an open post keeps it open
+
+== structure
+
+----
+personal-website/
+├── index.html
+├── src/
+│   ├── css/style.css
+│   └── js/
+│       ├── app.js           # UI logic
+│       ├── comments.mjs     # small browser-side comment helpers
+│       ├── bg.js            # canvas background animation
+│       ├── storage.js       # localStorage + API abstraction
+│       ├── pure.mjs         # pure helpers used by tests
+│       ├── config.js        # local dev fallback
+│       └── config.js.tftpl  # terraform-rendered deploy template
+├── src/posts/
+│   ├── manifest.json        # global config + post metadata
+│   ├── *.md / *.adoc        # post content
+│   └── diagrams/            # per-post SVG diagrams (one subfolder per post)
+├── lambda/
+│   ├── index.py             # Python API handler (likes, reads, comments + replies)
+│   ├── requirements.txt     # Lambda + test dependencies
+│   └── tests/
+├── terraform/
+│   ├── main.tf              # S3, CloudFront, Lambda, API Gateway, DynamoDB
+│   └── backend.hcl.example  # example remote-state backend config
+├── tests/
+│   ├── unit/                # pure parser/helper tests
+│   └── smoke/               # browser smoke test + tiny local server
+├── .github/workflows/       # CI/CD — unit, smoke and lambda tests + deploy on main
+└── README.adoc
+----
+
+== running locally
+
+[source,bash]
+----
+python3 -m http.server 8080
+# open http://localhost:8080
+----
+
+has to be a server, not `file://` — the site fetches post files over HTTP.
+
+`src/js/config.js` is the local-dev fallback and intentionally keeps `API_URL` empty,
+so the site uses localStorage-backed mode when you run it on your laptop.
+
+== tests
+
+[source,bash]
+----
+# frontend — parser, comment-tree helpers and fmtCount unit tests
+npm test
+
+# browser smoke test — boots the real site in Chromium and checks
+# home, about and the post modal still work
+npm run test:smoke
+
+# python lambda tests
+npm run test:lambda
+----
+
+GitHub Actions runs three jobs on every push and pull request:
+
+* frontend unit tests
+* browser smoke test
+* Python Lambda tests
+
+Deploy only goes ahead once all three pass.
+
+=== smoke test troubleshooting
+
+The smoke test uses Playwright + Chromium.
+On a fresh machine, install the browser once:
+
+[source,bash]
+----
+npx playwright install chromium
+npm run test:smoke
+----
+
+If the browser download fails with something like `SELF_SIGNED_CERT_IN_CHAIN`,
+it usually means your network is intercepting TLS traffic with a corporate or local proxy certificate.
+The test code is still fine — Node just does not trust the certificate chain used during the browser download.
+
+Common ways to fix that locally:
+
+* configure Node/npm to trust your company CA
+* run the Playwright install from a network without TLS interception
+* use the GitHub Actions runner, where the smoke test installs Chromium in a clean environment
+
+If Chromium is already installed successfully, `npm run test:smoke` should work without reinstalling it each time.
+
+== adding a post
+
+. create `src/posts/my-post.md` (or `.adoc`)
+. add an entry to `src/posts/manifest.json`
+
+current manifest shape:
+
+[source,json]
+----
+{
+  "globalExcludeTagsFromAbout": ["JavaScript"],
+  "posts": [
+    {
+      "id": "1",
+      "file": "how-this-blog-works.adoc",
+      "title": "Building tikho.me — a static blog with no framework",
+      "excerpt": "How this blog works: a static frontend on S3 + CloudFront, a small Python Lambda for likes and comments, and the fixes behind smooth refreshes, hash routing and regression-safe smoke tests.",
+      "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
+      "date": "Mar 31, 2026",
+      "tags": ["Static Sites", "Python", "AWS", "Serverless", "Architecture"]
+    }
+  ]
+}
+----
+
+notes:
+
+* `readTime` is *not* stored in the manifest anymore — it is calculated automatically from the post word count
+* `globalExcludeTagsFromAbout` removes tags from the About skills cloud across *all* posts
+* markdown and asciidoc both work — the parser picks the right one from the file extension
+
+== comments and local reset
+
+comments are threaded and support replies.
+old local data from earlier versions is migrated on startup, but if you want a completely clean retest of the comments UI without touching likes or reads, remove only the comments cache in the browser console:
+
+[source,javascript]
+----
+localStorage.removeItem("blog_comments")
+location.reload()
+----
+
+that keeps `blog_likes` and `blog_reads` intact.
+
+== deploying
+
+=== GitHub Actions (automatic)
+
+every push to `main` syncs the site to S3 and invalidates CloudFront.
+deploy runs are serialized with GitHub Actions concurrency, so only one deploy runs at a time and newer ones wait in the queue instead of cancelling the active deploy.
+
+add these secrets to your repo (*Settings → Secrets → Actions*):
+
+[cols="1,2"]
+|===
+| secret | value
+
+| `AWS_ACCESS_KEY_ID`
+| access key for an IAM user with S3 write + CloudFront invalidation permissions
+
+| `AWS_SECRET_ACCESS_KEY`
+| secret for the above
+
+| `AWS_REGION`
+| e.g. `us-east-1`
+
+| `S3_BUCKET`
+| your bucket name, e.g. `tikho-me`
+
+| `CLOUDFRONT_DISTRIBUTION_ID`
+| the distribution ID from `terraform output cloudfront_url` (or the AWS console)
+|===
+
+you can also trigger a deploy manually from the *Actions* tab.
+
+=== just the site (manual)
+
+[source,bash]
+----
+aws s3 sync . s3://YOUR_BUCKET \
+  --exclude ".git/*" --exclude "node_modules/*" \
+  --delete
+aws cloudfront create-invalidation \
+  --distribution-id YOUR_CF_ID --paths "/*"
+----
+
+=== full stack (Terraform)
+
+Terraform creates the infra and also renders `src/js/config.js` from `src/js/config.js.tftpl`,
+so the deployed site always gets the live API URL automatically.
+
+==== 1. create backend state storage once
+
+Create an S3 bucket for the Terraform state.
+Terraform can use S3 lockfiles for backend locking now, so you do not need a DynamoDB table just for state locking.
+
+Use `terraform/backend.hcl.example` as the template for your real backend config:
+
+[source,bash]
+----
+cd terraform
+cp backend.hcl.example backend.hcl
+# edit backend.hcl values if needed
+terraform init -backend-config=backend.hcl
+----
+
+example backend config:
+
+[source,hcl]
+----
+bucket       = "tikho-me-tfstate"
+key          = "personal-website/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true
+----
+
+`terraform/backend.hcl` is ignored by git on purpose, so account-specific backend settings do not get committed by accident.
+
+With that in place, Terraform state is remote and locked through the S3 backend itself, so concurrent applies wait instead of stepping on each other.
+
+==== 2. build the Lambda zip and apply
+
+The frontend still has no build step.
+The only packaging step is for the Python Lambda zip:
+
+[source,bash]
+----
+cd lambda
+python3 -m pip install -r requirements.txt -t package
+cp index.py package/
+cd package && zip -r ../../terraform/lambda.zip . && cd ..
+rm -rf package
+cd ../terraform && terraform apply
+----
+
+after `apply`:
+
+* `cloudfront_url` — point your DNS CNAME here
+* `api_url` — already rendered into the deployed `src/js/config.js`
+* `terraform_lock_table_name` — legacy output kept for compatibility; backend locking now uses S3 lockfiles
+
+=== manual (AWS Console)
+
+. create an S3 bucket, uncheck "Block all public access"
+. enable *Static website hosting* → index: `index.html`
+. add a public-read bucket policy (`s3:GetObject` on `arn:aws:s3:::YOUR_BUCKET/*`)
+. `aws s3 sync . s3://YOUR_BUCKET --exclude ".git/*"`
+
+== license
+
+MIT — see link:LICENSE[LICENSE].

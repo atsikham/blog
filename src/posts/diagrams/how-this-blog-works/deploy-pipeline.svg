@@ -1,0 +1,64 @@
+<svg viewBox="0 0 1220 230" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }
+      .dim { fill: #4b5563; }
+      .sketch { stroke-linecap: round; stroke-linejoin: round; }
+      .arrow { stroke: #111827; stroke-width: 2.2; fill: none; stroke-linecap: round; }
+    </style>
+    <marker id="arr" markerWidth="16" markerHeight="16" refX="12" refY="8" orient="auto">
+      <path d="M2,2 L12,8 L2,14" fill="none" stroke="#111827" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M3,3 L11,8 L3,13" fill="none" stroke="#111827" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>
+    </marker>
+  </defs>
+  <rect width="1220" height="230" fill="#fffdf8"/>
+
+  <text x="610" y="24" text-anchor="middle" font-size="14" class="dim">GitHub Actions deploy flow</text>
+  <text x="610" y="44" text-anchor="middle" font-size="13" class="dim">publish waits for all checks, and deploys are queued one at a time</text>
+
+  <rect x="18" y="78" width="140" height="92" rx="10" fill="#dceafe" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="20" y="80" width="136" height="88" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="88" y="114" text-anchor="middle" font-size="16" font-weight="700">git push</text>
+  <text x="88" y="140" text-anchor="middle" font-size="14" class="dim">to main</text>
+
+  <path d="M162,123 L206,123" class="arrow" marker-end="url(#arr)"/>
+  <path d="M162,125 L205,124" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+
+  <rect x="210" y="78" width="180" height="92" rx="10" fill="#d9f2ef" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="212" y="80" width="176" height="88" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="300" y="108" text-anchor="middle" font-size="15" font-weight="700">frontend unit tests</text>
+  <text x="300" y="132" text-anchor="middle" font-size="13" class="dim">parsers + helpers</text>
+
+  <path d="M394,123 L438,123" class="arrow" marker-end="url(#arr)"/>
+  <path d="M394,125 L437,124" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+
+  <rect x="442" y="78" width="170" height="92" rx="10" fill="#ece7fb" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="444" y="80" width="166" height="88" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="527" y="108" text-anchor="middle" font-size="16" font-weight="700">smoke test</text>
+  <text x="527" y="132" text-anchor="middle" font-size="13" class="dim">Chromium boot check</text>
+
+  <path d="M616,123 L660,123" class="arrow" marker-end="url(#arr)"/>
+  <path d="M616,125 L659,124" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+
+  <rect x="664" y="78" width="176" height="92" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="666" y="80" width="172" height="88" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="752" y="108" text-anchor="middle" font-size="15" font-weight="700">Python Lambda tests</text>
+  <text x="752" y="132" text-anchor="middle" font-size="13" class="dim">pytest</text>
+
+  <path d="M844,123 L888,123" class="arrow" marker-end="url(#arr)"/>
+  <path d="M844,125 L887,124" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+
+  <rect x="892" y="78" width="176" height="92" rx="10" fill="#fdecc8" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="894" y="80" width="172" height="88" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="980" y="108" text-anchor="middle" font-size="16" font-weight="700">deploy</text>
+  <text x="980" y="132" text-anchor="middle" font-size="13" class="dim">S3 sync + CF invalidate</text>
+
+  <path d="M1072,123 L1110,123" class="arrow" marker-end="url(#arr)"/>
+  <path d="M1072,125 L1109,124" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+
+  <rect x="1114" y="78" width="88" height="92" rx="10" fill="#fce7f3" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="1116" y="80" width="84" height="88" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="1158" y="108" text-anchor="middle" font-size="16" font-weight="700">live</text>
+  <text x="1158" y="132" text-anchor="middle" font-size="13" class="dim">tikho.me</text>
+</svg>
+

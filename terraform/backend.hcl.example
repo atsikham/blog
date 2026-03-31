@@ -1,0 +1,8 @@
+# copy to backend.hcl (or pass these via -backend-config)
+# used by `terraform init` for remote state + S3 lockfiles
+
+bucket       = "tikho-me-tfstate"
+key          = "personal-website/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true

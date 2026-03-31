@@ -1,0 +1,41 @@
+<svg viewBox="0 0 920 170" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }</style>
+    <marker id="arr" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto">
+      <path d="M2,2 L11,7 L2,12" fill="none" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="920" height="170" fill="#f8f9fa"/>
+
+  <!-- 6 uniform boxes w=130 h=80. Straight arrows between them, 4px clear of each box edge -->
+
+  <rect x="8"   y="30" width="130" height="80" rx="8" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+  <text x="73"  y="62" text-anchor="middle" font-size="14" font-weight="700">1. extract</text>
+  <text x="73"  y="82" text-anchor="middle" font-size="13" fill="#1e1e2e">code blocks</text>
+  <path d="M142,70 L164,70" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <rect x="168" y="30" width="130" height="80" rx="8" fill="#f3f0ff" stroke="#6741d9" stroke-width="2"/>
+  <text x="233" y="62" text-anchor="middle" font-size="14" font-weight="700">2. escape</text>
+  <text x="233" y="82" text-anchor="middle" font-size="13" fill="#1e1e2e">HTML entities</text>
+  <path d="M302,70 L324,70" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <rect x="328" y="30" width="130" height="80" rx="8" fill="#e3fafc" stroke="#0c8599" stroke-width="2"/>
+  <text x="393" y="62" text-anchor="middle" font-size="14" font-weight="700">3. structure</text>
+  <text x="393" y="82" text-anchor="middle" font-size="13" fill="#1e1e2e">h / ul / ol</text>
+  <path d="M462,70 L484,70" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <rect x="488" y="30" width="130" height="80" rx="8" fill="#ebfbee" stroke="#2f9e44" stroke-width="2"/>
+  <text x="553" y="62" text-anchor="middle" font-size="14" font-weight="700">4. inline</text>
+  <text x="553" y="82" text-anchor="middle" font-size="13" fill="#1e1e2e">bold / italic / code</text>
+  <path d="M622,70 L644,70" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <rect x="648" y="30" width="130" height="80" rx="8" fill="#fff9db" stroke="#e67700" stroke-width="2"/>
+  <text x="713" y="62" text-anchor="middle" font-size="14" font-weight="700">5. paragraphs</text>
+  <text x="713" y="82" text-anchor="middle" font-size="13" fill="#1e1e2e">wrap bare lines</text>
+  <path d="M782,70 L804,70" stroke="#1e1e2e" stroke-width="2" fill="none" stroke-linecap="round" marker-end="url(#arr)"/>
+
+  <rect x="808" y="30" width="100" height="80" rx="8" fill="#fff0f6" stroke="#c2255c" stroke-width="2"/>
+  <text x="858" y="62" text-anchor="middle" font-size="14" font-weight="700">6. restore</text>
+  <text x="858" y="82" text-anchor="middle" font-size="13" fill="#1e1e2e">→ HTML ✓</text>
+</svg>
+

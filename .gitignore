@@ -1,0 +1,13 @@
+# local terraform backend config — contains account-specific state settings
+terraform/backend.hcl
+
+# terraform local state/cache if someone runs without the remote backend yet
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.*
+
+# local lambda deps / packaging artifacts
+lambda/node_modules/
+terraform/lambda.zip
+

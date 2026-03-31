@@ -1,0 +1,13 @@
+{
+  "name": "tikho-me",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.mjs",
+    "test:smoke": "node --test tests/smoke/site.smoke.mjs",
+    "test:lambda": "cd lambda && python3 -m pytest -q"
+  },
+  "devDependencies": {
+    "playwright": "^1.54.2"
+  }
+}

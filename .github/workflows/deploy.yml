@@ -1,0 +1,108 @@
+---
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  # lets triggering a deploy manually from the Actions tab
+  workflow_dispatch:
+
+# only one deploy for this site should run at a time.
+# cancel-in-progress=false means later deploys queue up and wait instead of
+# killing the one that's already publishing files / invalidating CloudFront.
+concurrency:
+  group: personal-blog-deploy
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+
+# deploy only runs after tests pass — test.yml runs on every push including main
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  deploy-site:
+    name: terraform + sync to S3 + invalidate CloudFront
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: build lambda zip
+        run: |
+          cd lambda
+          python -m pip install -r requirements.txt -t package
+          cp index.py package/
+          cd package
+          zip -r ../../terraform/lambda.zip .
+
+      - name: terraform init
+        working-directory: terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
+
+      - name: terraform apply
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="bucket_name=${{ secrets.S3_BUCKET }}" \
+            -var="region=${{ secrets.AWS_REGION }}" \
+            -var="acm_certificate_arn=${{ secrets.ACM_CERTIFICATE_ARN }}"
+
+      - name: resolve CloudFront distribution id from Terraform output
+        id: cloudfront
+        working-directory: terraform
+        run: |
+          CF_URL="$(terraform output -raw cloudfront_url)"
+          CF_DOMAIN="${CF_URL#https://}"
+          DIST_ID="$(aws cloudfront list-distributions --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id | [0]" --output text)"
+          if [ -z "$DIST_ID" ] || [ "$DIST_ID" = "None" ]; then
+            echo "Could not resolve CloudFront distribution id for ${CF_DOMAIN}" >&2
+            exit 1
+          fi
+          echo "distribution_id=$DIST_ID" >> "$GITHUB_OUTPUT"
+
+      # html — no-cache so visitors always get the latest version
+      - name: upload html
+        run: |
+          aws s3 sync . s3://${{ secrets.S3_BUCKET }} \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --delete
+
+      # css/js/posts — long cache, a full redeploy busts it
+      - name: upload assets
+        run: |
+          aws s3 sync src/ s3://${{ secrets.S3_BUCKET }}/src/ \
+            --cache-control "public, max-age=31536000, immutable" \
+            --delete
+
+      # invalidate so CloudFront serves the new files immediately
+      - name: invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.cloudfront.outputs.distribution_id }} \
+            --paths "/*"

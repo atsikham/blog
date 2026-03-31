@@ -1,0 +1,14 @@
+{
+  "globalExcludeTagsFromAbout": ["JavaScript"],
+  "posts": [
+    {
+      "id": "1",
+      "file": "how-this-blog-works.adoc",
+      "title": "Building tikho.me — a static blog with no framework",
+      "excerpt": "How this blog works: a static frontend on S3 + CloudFront, a small Python Lambda for likes and comments, and the fixes that made refreshes, routing and regression checks feel solid.",
+      "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
+      "date": "Mar 31, 2026",
+      "tags": ["Static Sites", "Python", "AWS", "Serverless", "Architecture"]
+    }
+  ]
+}

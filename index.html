@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="tikho.me — a personal blog about technology, engineering, and the ideas worth writing down." />
+  <title>tikho.me</title>
+  <link rel="canonical" href="https://tikho.me" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="src/css/style.css" />
+  <!-- Runs synchronously before first paint: hide body + apply saved theme -->
+  <script>
+    document.documentElement.style.visibility = 'hidden';
+    (function() {
+      var saved = localStorage.getItem('theme');
+      var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      // Safety fallback: reveal after 3s if JS init fails
+      setTimeout(function() {
+        document.documentElement.style.visibility = 'visible';
+      }, 3000);
+    })();
+  </script>
+</head>
+<body>
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+
+<!-- ===== Header ===== -->
+<header>
+  <nav>
+    <a class="nav-logo" href="#" data-page="home">tikho.me</a>
+    <div class="nav-links">
+      <a href="#" data-page="home" class="active">Blog</a>
+      <a href="#" data-page="about">About</a>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">🌙</button>
+    </div>
+  </nav>
+</header>
+
+<!-- ===== Pages ===== -->
+<main>
+
+  <!-- HOME / BLOG PAGE -->
+  <div id="page-home" class="page">
+    <section class="hero container">
+      <h1>Build. Break. Write it down.</h1>
+      <p>Hi, I'm Anatoli — platform engineer. I write about technology, things I've learned,
+         and the occasional opinion I couldn't keep to myself.</p>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input
+          id="searchInput"
+          class="search-input"
+          type="search"
+          placeholder="Search posts…"
+          aria-label="Search posts"
+          autocomplete="off"
+        />
+        <kbd class="search-clear" id="searchClear" style="display:none" title="Clear">✕</kbd>
+      </div>
+      <div class="tag-filter" id="tagFilter"></div>
+    </section>
+
+    <section class="posts-section container">
+      <div class="posts-header">
+        <h2 class="section-title">Latest Posts</h2>
+        <span class="results-count" id="resultsCount"></span>
+      </div>
+      <div class="posts-grid" id="postsGrid"></div>
+    </section>
+  </div>
+
+  <!-- ABOUT PAGE -->
+  <div id="page-about" class="page">
+    <section class="about-section container">
+      <div class="about-card">
+        <div class="about-avatar">AT</div>
+        <h1 class="about-name">Anatoli Tsikhamirau</h1>
+        <p class="about-title">Platform Engineer</p>
+        <p class="about-bio">
+          I work on the platforms and tools that help engineering teams do their job.
+          Mostly Go, Kubernetes, and cloud infrastructure — the foundation that quietly holds everything else up.
+        </p>
+        <div class="social-links">
+          <a class="social-link" href="https://github.com/atsikham" target="_blank" rel="noopener">GitHub</a>
+          <a class="social-link" href="https://www.linkedin.com/in/anatoli-tsikhamirau/" target="_blank" rel="noopener">LinkedIn</a>
+          <a class="social-link" href="mailto:tihomirovanatoliy@gmail.com">Email</a>
+        </div>
+      </div>
+
+      <div style="max-width:600px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;">
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:16px;">Most Written About</h2>
+        <div id="aboutTags" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<!-- ===== Post Modal ===== -->
+<div id="modalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Blog post">
+  <div class="post-modal">
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- ===== Toast Container ===== -->
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<!-- ===== Footer ===== -->
+<footer>
+  <p>© 2026 Anatoli Tsikhamirau · <a href="https://tikho.me" style="color:var(--text-muted)">tikho.me</a></p>
+</footer>
+
+<script src="src/js/config.js"></script>
+<script src="src/js/storage.js"></script>
+<script src="src/js/bg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="src/js/app.js"></script>
+</body>
+</html>
+
