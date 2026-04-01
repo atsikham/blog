@@ -1,3 +1,5 @@
+.idea
+
 # local terraform backend config — contains account-specific state settings
 terraform/backend.hcl
 
@@ -10,4 +12,3 @@ terraform/*.tfstate.*
 # local lambda deps / packaging artifacts
 lambda/node_modules/
 terraform/lambda.zip
-
