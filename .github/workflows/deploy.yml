@@ -97,6 +97,7 @@ jobs:
       - name: upload assets
         run: |
           aws s3 sync src/ s3://${{ secrets.S3_BUCKET }}/src/ \
+            --exclude "js/config.js" \
             --cache-control "public, max-age=31536000, immutable" \
             --delete
 
