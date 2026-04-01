@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import json
+import logging
 import os
 import re
 import uuid
@@ -23,9 +24,21 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 STATS_TABLE = os.environ.get("STATS_TABLE", "blog_post_stats")
 COMMENTS_TABLE = os.environ.get("COMMENTS_TABLE", "blog_comments")
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
+
+logger.info(
+    "Lambda module loaded",
+    extra={
+        "stats_table": STATS_TABLE,
+        "comments_table": COMMENTS_TABLE,
+        "allowed_origin": ALLOWED_ORIGIN,
+    },
+)
 
 # Same CORS headers on every response.
 # This keeps the browser happy whether the site is using the local fallback
@@ -47,6 +60,7 @@ def _get_tables() -> tuple[Any, Any]:
     # That keeps imports cheap and makes tests easy to stub.
     if _stats_table is None or _comments_table is None:
         if _dynamodb is None:
+            logger.info("Creating DynamoDB resource")
             _dynamodb = boto3.resource("dynamodb")
         _stats_table = _dynamodb.Table(STATS_TABLE)
         _comments_table = _dynamodb.Table(COMMENTS_TABLE)
@@ -248,6 +262,8 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     method = ((event.get("requestContext") or {}).get("http") or {}).get("method")
     path = event.get("rawPath", "/")
 
+    logger.info("Handling request", extra={"method": method, "path": path})
+
     if method == "OPTIONS":
         return {"statusCode": 204, "headers": CORS, "body": ""}
 
@@ -269,4 +285,13 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     route = routes.get((method, path))
     if not route:
         return err(404, "Not found")
-    return route(event if method == "GET" else body)
+
+    try:
+        return route(event if method == "GET" else body)
+    except Exception as exc:
+        logger.exception(
+            "Unhandled error while processing request: %s",
+            exc,
+            extra={"method": method, "path": path},
+        )
+        return err(500, "Internal server error")
