@@ -5,14 +5,9 @@ resource "aws_apigatewayv2_api" "blog_api" {
   protocol_type = "HTTP"
 
   # Localhost is listed so local dev can still talk to the API if needed.
-  # The CloudFront domain is listed too for the deployed site.
+  # Both site domains and the CloudFront domain are allowed in deployed environments.
   cors_configuration {
-    allow_origins = [
-      "https://${var.domain}",
-      "https://${aws_cloudfront_distribution.cdn.domain_name}",
-      "http://localhost:8080",
-      "http://localhost:8181",
-    ]
+    allow_origins = local.api_allowed_origins
     allow_methods = ["GET", "POST", "OPTIONS"]
     allow_headers = ["Content-Type"]
     max_age       = 86400
@@ -26,10 +21,34 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
-# One route catches everything and passes it to the Lambda.
-resource "aws_apigatewayv2_route" "default" {
+# Explicit routes keep HTTP API routing and CORS preflight predictable.
+resource "aws_apigatewayv2_route" "stats" {
   api_id    = aws_apigatewayv2_api.blog_api.id
-  route_key = "$default"
+  route_key = "GET /stats"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "like" {
+  api_id    = aws_apigatewayv2_api.blog_api.id
+  route_key = "POST /like"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "read" {
+  api_id    = aws_apigatewayv2_api.blog_api.id
+  route_key = "POST /read"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "comments_get" {
+  api_id    = aws_apigatewayv2_api.blog_api.id
+  route_key = "GET /comments"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "comments_post" {
+  api_id    = aws_apigatewayv2_api.blog_api.id
+  route_key = "POST /comments"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

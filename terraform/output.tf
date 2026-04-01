@@ -28,5 +28,5 @@ output "certificate_arn" {
 
 output "api_url" {
   description = "Rendered automatically into src/js/config.js for deployed environments"
-  value       = aws_apigatewayv2_stage.default.invoke_url
+  value       = aws_apigatewayv2_api.blog_api.api_endpoint
 }
