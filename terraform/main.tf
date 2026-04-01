@@ -396,7 +396,9 @@ resource "aws_cloudfront_distribution" "cdn" {
 }
 
 resource "aws_route53_record" "site_alias" {
-  for_each = var.route53_zone_id == "" ? {} : toset(local.domain_names)
+  for_each = var.route53_zone_id == "" ? tomap({}) : tomap({
+    for domain_name in local.domain_names : domain_name => domain_name
+  })
 
   zone_id = var.route53_zone_id
   name    = each.value
