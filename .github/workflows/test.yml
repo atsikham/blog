@@ -25,27 +25,27 @@ jobs:
       - name: run parser + helper tests
         run: npm test
 
-#  smoke-tests:
-#    name: browser smoke test
-#    runs-on: ubuntu-latest
-#    needs: unit-tests
-#
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - uses: actions/setup-node@v4
-#        with:
-#          node-version: 22
-#          cache: npm
-#
-#      - name: install dependencies
-#        run: npm install
-#
-#      - name: install Playwright Chromium
-#        run: npx playwright install --with-deps chromium
-#
-#      - name: run smoke test
-#        run: npm run test:smoke
+  smoke-tests:
+    name: browser smoke test
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: install dependencies
+        run: npm install
+
+      - name: install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: run smoke test
+        run: npm run test:smoke
 
   lambda-tests:
     name: python lambda tests

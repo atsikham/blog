@@ -47,7 +47,17 @@ async function startServer() {
 async function stopServer(child) {
   if (!child || child.killed) return;
   child.kill("SIGTERM");
-  await once(child, "exit").catch(() => {});
+  const forcedExit = new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      if (!child.killed) child.kill("SIGKILL");
+      resolve();
+    }, 1000);
+    child.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+  await forcedExit;
 }
 
 test("smoke — home, about and post modal render and stay interactive", { timeout: 30000 }, async () => {
@@ -58,41 +68,50 @@ test("smoke — home, about and post modal render and stay interactive", { timeo
     const page = await browser.newPage();
     const pageErrors = [];
     const consoleErrors = [];
+    let step = "boot";
     page.on("pageerror", (err) => pageErrors.push(String(err)));
     page.on("console", (msg) => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
     });
 
+    step = "goto";
     await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 10000 });
     await page.waitForFunction(() => document.documentElement.style.visibility === "visible", { timeout: 10000 });
 
+    step = "home posts";
     await page.waitForSelector("#postsGrid .post-card", { timeout: 10000 });
     const heroText = await page.textContent(".hero h1");
     assert.match(heroText || "", /Build\. Break\. Write it down\./);
 
+    step = "about nav";
     const aboutLink = page.getByRole("link", { name: "About" });
     await aboutLink.click({ timeout: 5000 });
     await page.waitForSelector("#page-about.active .about-name", { timeout: 5000 });
     const aboutName = await page.textContent("#page-about.active .about-name");
     assert.equal(aboutName?.trim(), "Anatoli Tsikhamirau");
 
-    // There are two elements that navigate home: the logo and the Blog link.
-    // Use the visible Blog nav link so Playwright strict mode stays happy.
+    step = "back home";
     await page.getByRole("link", { name: "Blog" }).click({ timeout: 5000 });
     await page.waitForSelector("#page-home.active #postsGrid .post-card", { timeout: 5000 });
+
+    step = "open post";
     await page.locator("#postsGrid .post-card").first().click({ timeout: 5000 });
     await page.waitForSelector("#modalOverlay.open .modal-title", { timeout: 5000 });
 
-    const toggleComments = page.getByRole("button", { name: /show \/ hide comments|show comments|hide comments/i });
+    step = "open comments";
+    const toggleComments = page.locator("#toggleComments");
     await toggleComments.click({ timeout: 5000 });
     await page.waitForSelector("#commentsSection:not(.comments-hidden)", { timeout: 5000 });
 
-    const closeBtn = page.getByRole("button", { name: /close post|close/i }).first();
+    step = "close modal";
+    const closeBtn = page.locator("#modalClose");
     await closeBtn.click({ timeout: 5000 });
     await page.waitForFunction(() => !document.getElementById("modalOverlay")?.classList.contains("open"), { timeout: 5000 });
-
-    assert.deepEqual(pageErrors, []);
-    assert.deepEqual(consoleErrors, []);
+    assert.deepEqual(pageErrors, [], `page errors at step ${step}: ${pageErrors.join(" | ")}`);
+    assert.deepEqual(consoleErrors, [], `console errors at step ${step}: ${consoleErrors.join(" | ")}`);
+  } catch (error) {
+    error.message = `[smoke step: ${step}] ${error.message}\npageErrors=${JSON.stringify(pageErrors)}\nconsoleErrors=${JSON.stringify(consoleErrors)}`;
+    throw error;
   } finally {
     await browser.close();
     await stopServer(server);
