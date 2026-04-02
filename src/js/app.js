@@ -1092,7 +1092,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load posts before wiring up anything that depends on tags, excerpts,
   // or post content. If this fails, show a clear message instead of a blank grid.
   try {
-    state.posts = await loadPosts();
+    state.posts = (await loadPosts()).reverse();
   } catch (err) {
     console.error("Failed to load posts:", err);
     document.getElementById("postsGrid").innerHTML =
