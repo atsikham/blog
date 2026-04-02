@@ -1,6 +1,11 @@
 <svg viewBox="0 0 920 170" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <style>text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }</style>
+    <style>@font-face {
+        font-family: 'Virgil';
+        src: url('https://excalidraw.com/Virgil.woff2') format('woff2');
+        font-display: swap;
+      }
+      text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }</style>
     <marker id="arr" markerWidth="14" markerHeight="14" refX="11" refY="7" orient="auto">
       <path d="M2,2 L11,7 L2,12" fill="none" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>

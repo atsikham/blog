@@ -16,6 +16,7 @@ const Storage = (() => {
       method,
       headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store",
     });
     if (!res.ok) throw new Error(`API ${method} ${path}: ${res.status}`);
     return res.json();

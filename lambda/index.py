@@ -80,8 +80,9 @@ def json_response(status_code: int, body: Any, extra_headers: dict[str, str] | N
     return {"statusCode": status_code, "headers": headers, "body": json.dumps(body)}
 
 
-def ok(body: Any) -> dict[str, Any]:
-    return json_response(200, body)
+def ok(body: Any, no_cache: bool = False) -> dict[str, Any]:
+    extra = {"Cache-Control": "no-store"} if no_cache else None
+    return json_response(200, body, extra_headers=extra)
 
 
 def err(status_code: int, message: str) -> dict[str, Any]:

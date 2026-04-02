@@ -189,3 +189,21 @@ def test_invalid_json_returns_400():
 def test_unknown_route_returns_404():
     response = index.handler(event("GET", "/unknown"), None)
     assert response["statusCode"] == 404
+
+
+def test_handler_logs_exception_message(caplog, monkeypatch):
+    def boom(_body):
+        raise RuntimeError("dynamodb write failed")
+
+    monkeypatch.setattr(index, "handle_add_comment", boom)
+
+    with caplog.at_level("ERROR"):
+        response = index.handler(
+            event("POST", "/comments", {"postId": "post-1", "name": "Anatoli", "text": "great article"}),
+            None,
+        )
+
+    assert response["statusCode"] == 500
+    assert "Unhandled error while processing request: dynamodb write failed" in caplog.text
+    assert "Traceback" in caplog.text
+

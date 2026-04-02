@@ -1,6 +1,11 @@
 <svg viewBox="0 0 980 640" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style>
+      @font-face {
+        font-family: 'Virgil';
+        src: url('https://excalidraw.com/Virgil.woff2') format('woff2');
+        font-display: swap;
+      }
       text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }
       .lbl { font-size: 14px; fill: #1e1e2e; }
       .dim { font-size: 13px; fill: #4b5563; }

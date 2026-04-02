@@ -47,11 +47,9 @@ jobs:
 
       - name: build lambda zip
         run: |
+          rm -f terraform/lambda.zip
           cd lambda
-          python -m pip install -r requirements.txt -t package
-          cp index.py package/
-          cd package
-          zip -r ../../terraform/lambda.zip .
+          zip -j ../terraform/lambda.zip index.py
 
       - name: terraform init
         working-directory: terraform
@@ -87,18 +85,24 @@ jobs:
       # html — no-cache so visitors always get the latest version
       - name: upload html
         run: |
-          aws s3 sync . s3://${{ secrets.S3_BUCKET }} \
-            --exclude "*" \
-            --include "*.html" \
+          aws s3 cp index.html s3://${{ secrets.S3_BUCKET }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+
+      # manifest + post files — no-cache so browsers always pick up new posts
+      - name: upload posts
+        run: |
+          aws s3 sync src/posts/ s3://${{ secrets.S3_BUCKET }}/src/posts/ \
             --cache-control "no-cache, no-store, must-revalidate" \
             --delete
 
-      # css/js/posts — long cache, a full redeploy busts it
+      # css / js / images — immutable long cache; CloudFront invalidation handles busting
       - name: upload assets
         run: |
           aws s3 sync src/ s3://${{ secrets.S3_BUCKET }}/src/ \
+            --exclude "posts/*" \
             --exclude "js/config.js" \
-            --cache-control "public, max-age=31536000, immutable" \
+            --cache-control "public, max-age=31536000" \
             --delete
 
       # invalidate so CloudFront serves the new files immediately

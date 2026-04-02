@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   parseMarkdown,
   parseAsciidoc,
@@ -8,6 +10,10 @@ import {
   getCommentThreadState,
   migrateStoredCommentsShape,
 } from "../../src/js/pure.mjs";
+
+const repoRoot = path.resolve(import.meta.dirname, "../..");
+const postsDir = path.join(repoRoot, "src/posts");
+const manifest = JSON.parse(fs.readFileSync(path.join(postsDir, "manifest.json"), "utf8"));
 
 // ── fmtCount ──────────────────────────────────────────────────
 
@@ -244,3 +250,34 @@ test("parseAsciidoc — double-backtick takes precedence over single-backtick", 
   assert.match(out, /<code>a`b<\/code>/);
 });
 
+// ── content manifest integrity ────────────────────────────────
+
+test("manifest — every referenced post file exists", () => {
+  const missing = manifest.posts
+    .map((post) => post.file)
+    .filter((file) => !fs.existsSync(path.join(postsDir, file)));
+
+  assert.deepEqual(missing, []);
+});
+
+test("posts — every AsciiDoc image reference resolves to a real file", () => {
+  const imageMacro = /image::([^\[]+)\[[^\]]*]/g;
+  const missing = [];
+
+  for (const post of manifest.posts) {
+    if (!post.file.endsWith(".adoc")) continue;
+
+    const postPath = path.join(postsDir, post.file);
+    const source = fs.readFileSync(postPath, "utf8");
+
+    for (const match of source.matchAll(imageMacro)) {
+      const relativeImagePath = match[1].trim();
+      const imagePath = path.join(postsDir, relativeImagePath);
+      if (!fs.existsSync(imagePath)) {
+        missing.push({ post: post.file, image: relativeImagePath });
+      }
+    }
+  }
+
+  assert.deepEqual(missing, []);
+});

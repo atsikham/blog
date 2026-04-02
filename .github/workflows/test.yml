@@ -58,9 +58,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: install lambda dependencies
+      - name: install lambda test dependencies
         working-directory: lambda
-        run: python -m pip install -r requirements.txt
+        run: python -m pip install -r requirements-dev.txt
 
       - name: run lambda tests
         working-directory: lambda

@@ -107,6 +107,7 @@ test("smoke — home, about and post modal render and stay interactive", { timeo
     const closeBtn = page.locator("#modalClose");
     await closeBtn.click({ timeout: 5000 });
     await page.waitForFunction(() => !document.getElementById("modalOverlay")?.classList.contains("open"), { timeout: 5000 });
+
     assert.deepEqual(pageErrors, [], `page errors at step ${step}: ${pageErrors.join(" | ")}`);
     assert.deepEqual(consoleErrors, [], `console errors at step ${step}: ${consoleErrors.join(" | ")}`);
   } catch (error) {

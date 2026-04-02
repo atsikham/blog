@@ -6,6 +6,7 @@ Just static files, a bit of JavaScript, and enough backend to support the small 
 
 That became `tikho.me`: a static frontend on S3 + CloudFront, posts stored as plain files, and a small serverless backend for likes, reads and comments.
 This post explains how it is put together, which problems came up, and what changed as the site slowly became a real project instead of a weekend experiment.
+The full source is on https://github.com/atsikham/blog[GitHub].
 
 == Architecture
 
@@ -26,7 +27,7 @@ The only packaging step in the whole project is building the Lambda zip for depl
 Posts are plain text files under `src/posts/`.
 The manifest holds metadata like title, date, authors, excerpt and tags.
 
-Both *Markdown* and *AsciiDoc* are supported.
+Both Markdown and AsciiDoc are supported.
 The parser picks the right format from the file extension, so there is no config to change when writing.
 AsciiDoc is handy for long technical posts because admonitions, code blocks and diagrams fit naturally.
 
@@ -58,13 +59,13 @@ The page would flash through several half-rendered states before settling down.
 There were three separate causes.
 
 First, content briefly rendered before the right theme and layout state were applied.
-The fix was a tiny inline script in `<head>` that hides the page and applies the saved theme *before* the first paint.
+The fix was a tiny inline script in `<head>` that hides the page and applies the saved theme before the first paint.
 That same choice also prevents the dark/light theme from flashing on load.
 
 Second, the modal animation was firing during restore.
 That made a restored post look like it was being opened from scratch.
 The fix was a temporary `no-transition` class that disables transitions just for the restore cycle.
-The class is removed only after *two* `requestAnimationFrame` ticks, which gives the browser time to paint the restored state once before animations are enabled again.
+The class is removed only after two `requestAnimationFrame` ticks, which gives the browser time to paint the restored state once before animations are enabled again.
 
 Third, restoring the hash could re-trigger the hash listener and cause a second open call.
 The fix was a small guard flag so the app can tell which hash changes it initiated itself.
@@ -78,7 +79,7 @@ The annoying part was that all three showed up as one visible flicker.
 
 Every post shows likes and reads.
 The server stores aggregate counts.
-The browser stores whether *this browser* has liked a post.
+The browser stores whether this browser has liked a post.
 That keeps the backend simple while still giving the user immediate feedback.
 
 Large counts are formatted compactly: `1.2k`, `10k`, `10m`.
@@ -90,7 +91,7 @@ Comments are threaded.
 A comment can reply to another comment, and replies can nest as deep as needed.
 Each thread can be collapsed or expanded so long discussions do not overwhelm the post.
 
-When you click *Reply*, the form shows who you are replying to.
+When you click Reply, the form shows who you are replying to.
 Replies render under their parent with visible indentation and thread structure.
 
 === Storage strategy

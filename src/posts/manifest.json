@@ -8,7 +8,19 @@
       "excerpt": "How this blog works: a static frontend on S3 + CloudFront, a small Python Lambda for likes and comments, and the fixes that made refreshes, routing and regression checks feel solid.",
       "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
       "date": "Mar 31, 2026",
-      "tags": ["Static Sites", "Python", "AWS", "Serverless", "Architecture"]
+      "tags": ["AWS", "S3", "CloudFront", "Lambda", "DynamoDB", "Python", "Serverless", "Terraform", "Architecture"]
+    },
+    {
+      "id": "2",
+      "file": "self-service-k8s-platform.adoc",
+      "title": "Building a self-service platform on Kubernetes with Operators, Karpenter and Kyverno",
+      "excerpt": "A concept for building a self-service internal developer platform on Kubernetes — using a custom operator to manage projects and environments, Karpenter for on-demand node provisioning, and Kyverno to transparently handle pod scheduling without touching developer workloads.",
+      "authors": [
+        { "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" },
+        { "name": "Paweł Kołakowski", "initials": "PK", "url": "https://www.linkedin.com/in/pkolakow/" }
+      ],
+      "date": "Apr 2, 2026",
+      "tags": ["Kubernetes", "Operator", "Karpenter", "Kyverno", "Platform Engineering", "Multi-tenancy", "Architecture", "AWS"]
     }
   ]
 }
