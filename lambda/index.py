@@ -139,6 +139,11 @@ def parse_body(event: dict[str, Any]) -> dict[str, Any]:
         if len(body.encode("utf-8")) > MAX_BODY_BYTES:
             raise ValueError("Request body too large")
         return json.loads(body)
+    except json.JSONDecodeError as exc:
+        # JSONDecodeError is a subclass of ValueError, so we have to catch it
+        # before the bare `raise` below — otherwise the raw decoder message
+        # leaks out instead of the consistent "Invalid JSON" clients expect.
+        raise ValueError("Invalid JSON") from exc
     except ValueError:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -343,5 +348,5 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         return route(event if method == "GET" else body)
     except Exception as exc:
-        logger.exception("Unhandled error", exc_info=exc, extra={"method": method, "path": path})
+        logger.exception("Unhandled error while processing request: %s", exc, extra={"method": method, "path": path})
         return err(500, "Internal server error")
