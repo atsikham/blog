@@ -1,22 +1,23 @@
-"""Blog API Lambda.
+"""Blog API Lambda — handles likes, reads, and comments.
 
-Handles likes, reads and comments for the site.
 Routes:
-- GET /stats
-- POST /like
-- POST /read
-- GET /comments
-- POST /comments
+  GET  /stats
+  POST /like
+  POST /read
+  GET  /comments
+  POST /comments
 """
 
 from __future__ import annotations
 
 import base64
+import collections
 import datetime as dt
 import json
 import logging
 import os
 import re
+import time
 import uuid
 from typing import Any, Callable
 
@@ -27,49 +28,88 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-STATS_TABLE = os.environ.get("STATS_TABLE", "blog_post_stats")
+STATS_TABLE    = os.environ.get("STATS_TABLE",    "blog_post_stats")
 COMMENTS_TABLE = os.environ.get("COMMENTS_TABLE", "blog_comments")
 ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
 
+# Anything bigger than this is almost certainly not a legitimate comment.
+# The WAF already rejects oversized bodies, but I'd rather not trust that alone.
+MAX_BODY_BYTES = 8_192
+
+# Sliding-window rate limits per (IP, route).
+# Lambda containers live for a while, so this in-process store is actually
+# useful — it accumulates timestamps across warm invocations.
+# The limits are tight enough to stop bots but loose enough that a real user
+# won't notice them.
+_RATE_LIMITS: dict[str, tuple[int, int]] = {
+    # (max requests, window in seconds)
+    "POST /comments": (5,  600),  # 5 comments per 10 min
+    "POST /like":     (30,  60),  # 30 likes per minute feels like plenty
+    "POST /read":     (60,  60),  # reads are cheap but still worth capping
+}
+
+_rate_store: dict[tuple[str, str], collections.deque] = collections.defaultdict(collections.deque)
+
+
+def _check_rate_limit(ip: str, route_key: str) -> bool:
+    limit = _RATE_LIMITS.get(route_key)
+    if not limit or not ip:
+        return True
+    max_req, window = limit
+    now = time.monotonic()
+    bucket = _rate_store[(ip, route_key)]
+    while bucket and bucket[0] < now - window:
+        bucket.popleft()
+    if len(bucket) >= max_req:
+        return False
+    bucket.append(now)
+    return True
+
+
+def _get_ip(event: dict[str, Any]) -> str:
+    return (
+        (event.get("requestContext") or {})
+        .get("http", {})
+        .get("sourceIp", "")
+    )
+
+
 logger.info(
-    "Lambda module loaded",
+    "Lambda cold start",
     extra={
-        "stats_table": STATS_TABLE,
+        "stats_table":    STATS_TABLE,
         "comments_table": COMMENTS_TABLE,
         "allowed_origin": ALLOWED_ORIGIN,
     },
 )
 
-# Same CORS headers on every response.
-# This keeps the browser happy whether the site is using the local fallback
-# or the deployed API behind CloudFront.
 CORS = {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Origin":  ALLOWED_ORIGIN,
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
 }
 
-_dynamodb = None
-_stats_table = None
+_dynamodb      = None
+_stats_table   = None
 _comments_table = None
 
 
 def _get_tables() -> tuple[Any, Any]:
     global _dynamodb, _stats_table, _comments_table
-    # Create the DynamoDB resource lazily.
-    # That keeps imports cheap and makes tests easy to stub.
+    # Lazy init so the module loads fast and tests can swap in fakes before
+    # any real AWS calls happen.
     if _stats_table is None or _comments_table is None:
         if _dynamodb is None:
-            logger.info("Creating DynamoDB resource")
+            logger.info("Connecting to DynamoDB")
             _dynamodb = boto3.resource("dynamodb")
-        _stats_table = _dynamodb.Table(STATS_TABLE)
+        _stats_table    = _dynamodb.Table(STATS_TABLE)
         _comments_table = _dynamodb.Table(COMMENTS_TABLE)
     return _stats_table, _comments_table
 
 
 def _set_tables_for_tests(stats_table: Any, comments_table: Any) -> None:
     global _stats_table, _comments_table
-    _stats_table = stats_table
+    _stats_table    = stats_table
     _comments_table = comments_table
 
 
@@ -94,11 +134,13 @@ def parse_body(event: dict[str, Any]) -> dict[str, Any]:
     if not body:
         return {}
     try:
-        # API Gateway can pass the body through as base64.
-        # Decode it first if that flag is set.
         if event.get("isBase64Encoded"):
             body = base64.b64decode(body).decode("utf-8")
+        if len(body.encode("utf-8")) > MAX_BODY_BYTES:
+            raise ValueError("Request body too large")
         return json.loads(body)
+    except ValueError:
+        raise
     except Exception as exc:  # noqa: BLE001
         raise ValueError("Invalid JSON") from exc
 
@@ -107,8 +149,8 @@ _TAG_RE = re.compile(r"<[^>]*>")
 
 
 def sanitize_text(value: Any, max_len: int = 1000) -> str:
-    # Comments are plain text.
-    # Strip tags, trim space, and cap length so one bad payload does not bloat the row.
+    # Strip any HTML tags and hard-cap the length.
+    # I don't want to render Markdown or HTML in comments — plain text only.
     return _TAG_RE.sub("", str(value)).strip()[:max_len]
 
 
@@ -120,8 +162,7 @@ def _format_date(iso_value: str) -> str:
 def get_stats(post_id: str) -> dict[str, int]:
     stats_table, _ = _get_tables()
     item = stats_table.get_item(Key={"postId": post_id}).get("Item")
-    # New posts do not have a row yet.
-    # Treat that as zeroes instead of a missing-resource error.
+    # Fresh posts won't have a row yet — just return zeros rather than 404ing.
     if not item:
         return {"likes": 0, "reads": 0}
     return {
@@ -132,8 +173,8 @@ def get_stats(post_id: str) -> dict[str, int]:
 
 def increment(post_id: str, field: str, delta: int = 1) -> int:
     stats_table, _ = _get_tables()
-    # DynamoDB ADD is handy here: it creates the number if missing,
-    # then increments it in one write.
+    # ADD creates the attribute if it doesn't exist, so I never have to PUT a
+    # zero row first. One fewer round-trip per new post.
     response = stats_table.update_item(
         Key={"postId": post_id},
         UpdateExpression="ADD #f :d",
@@ -153,13 +194,13 @@ def handle_get_stats(event: dict[str, Any]) -> dict[str, Any]:
     rows = []
     for post_id in post_ids:
         rows.append({"id": post_id, **get_stats(post_id)})
-    return ok(rows)
+    return ok(rows, no_cache=True)
 
 
 def handle_toggle_like(body: dict[str, Any]) -> dict[str, Any]:
     stats_table, _ = _get_tables()
     post_id = body.get("postId")
-    liked = body.get("liked")
+    liked   = body.get("liked")
     if not post_id:
         return err(400, "postId required")
 
@@ -167,7 +208,8 @@ def handle_toggle_like(body: dict[str, Any]) -> dict[str, Any]:
         new_count = increment(post_id, "likes", 1)
     else:
         try:
-            # Only decrement if the stored count is already above zero.
+            # Use a condition so we never go below zero, even if two unlike
+            # requests race against each other.
             response = stats_table.update_item(
                 Key={"postId": post_id},
                 UpdateExpression="ADD likes :d",
@@ -199,48 +241,52 @@ def handle_get_comments(event: dict[str, Any]) -> dict[str, Any]:
     if not post_id:
         return err(400, "postId required")
 
-    # Comments are stored under one post id and sorted by the range key.
-    # That gives a stable oldest-first list for the UI.
-    response = comments_table.query(KeyConditionExpression=Key("postId").eq(post_id), ScanIndexForward=True)
+    # ScanIndexForward=True means oldest first, which is what the UI expects.
+    response = comments_table.query(
+        KeyConditionExpression=Key("postId").eq(post_id),
+        ScanIndexForward=True,
+    )
     items = response.get("Items", [])
     comments = [
         {
-            "id": item["id"],
-            "name": item["name"],
-            "text": item["text"],
+            "id":        item["id"],
+            "name":      item["name"],
+            "text":      item["text"],
             "replyToId": item.get("replyToId"),
-            "date": _format_date(item["createdAt"]),
+            "date":      _format_date(item["createdAt"]),
         }
         for item in items
     ]
-    return ok(comments)
+    return ok(comments, no_cache=True)
 
 
 def handle_add_comment(body: dict[str, Any]) -> dict[str, Any]:
     _, comments_table = _get_tables()
-    post_id = body.get("postId")
-    name = body.get("name")
-    text = body.get("text")
+    post_id     = body.get("postId")
+    name        = body.get("name")
+    text        = body.get("text")
     reply_to_id = body.get("replyToId")
 
     if not post_id or not name or not text:
         return err(400, "postId, name and text required")
 
-    safe_name = sanitize_text(name, 80)
-    safe_text = sanitize_text(text, 1000)
+    safe_name        = sanitize_text(name, 80)
+    safe_text        = sanitize_text(text, 1000)
     safe_reply_to_id = str(reply_to_id)[:200] if reply_to_id else None
 
     comment_id = str(uuid.uuid4())
     created_at = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
-    # The sort key keeps comments ordered by time and still guarantees uniqueness.
+
+    # Prefixing the sort key with the timestamp keeps comments in time order
+    # while the UUID suffix guarantees uniqueness even for concurrent writes.
     sort_key = f"{created_at}#{comment_id}"
 
-    item = {
-        "postId": post_id,
-        "sk": sort_key,
-        "id": comment_id,
-        "name": safe_name,
-        "text": safe_text,
+    item: dict[str, Any] = {
+        "postId":    post_id,
+        "sk":        sort_key,
+        "id":        comment_id,
+        "name":      safe_name,
+        "text":      safe_text,
         "createdAt": created_at,
     }
     if safe_reply_to_id:
@@ -248,38 +294,45 @@ def handle_add_comment(body: dict[str, Any]) -> dict[str, Any]:
 
     comments_table.put_item(Item=item)
 
-    return ok(
-        {
-            "id": comment_id,
-            "name": safe_name,
-            "text": safe_text,
-            "replyToId": safe_reply_to_id,
-            "date": _format_date(created_at),
-        }
-    )
+    return ok({
+        "id":        comment_id,
+        "name":      safe_name,
+        "text":      safe_text,
+        "replyToId": safe_reply_to_id,
+        "date":      _format_date(created_at),
+    })
 
 
 def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    method = ((event.get("requestContext") or {}).get("http") or {}).get("method")
-    path = event.get("rawPath", "/")
+    method    = ((event.get("requestContext") or {}).get("http") or {}).get("method")
+    path      = event.get("rawPath", "/")
+    route_key = f"{method} {path}"
 
-    logger.info("Handling request", extra={"method": method, "path": path})
+    logger.info("Request", extra={"method": method, "path": path})
 
     if method == "OPTIONS":
         return {"statusCode": 204, "headers": CORS, "body": ""}
 
+    # Check rate limits before doing anything else — no point parsing the body
+    # if we're going to reject the request anyway.
+    if method == "POST":
+        ip = _get_ip(event)
+        if not _check_rate_limit(ip, route_key):
+            logger.warning("Rate limit hit", extra={"ip": ip, "route": route_key})
+            return err(429, "Too many requests — please slow down")
+
     try:
         body = parse_body(event)
-    except ValueError:
-        return err(400, "Invalid JSON")
+    except ValueError as exc:
+        return err(400, str(exc))
 
-    # Keep the routing table small and obvious.
-    # GET handlers need the full event because they read query params.
+    # GET handlers get the full event so they can read query params.
+    # POST handlers only get the parsed body — they don't need the rest.
     routes: dict[tuple[str, str], Callable[[dict[str, Any]], dict[str, Any]]] = {
-        ("GET", "/stats"): handle_get_stats,
-        ("POST", "/like"): handle_toggle_like,
-        ("POST", "/read"): handle_record_read,
-        ("GET", "/comments"): handle_get_comments,
+        ("GET",  "/stats"):    handle_get_stats,
+        ("POST", "/like"):     handle_toggle_like,
+        ("POST", "/read"):     handle_record_read,
+        ("GET",  "/comments"): handle_get_comments,
         ("POST", "/comments"): handle_add_comment,
     }
 
@@ -290,9 +343,5 @@ def handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         return route(event if method == "GET" else body)
     except Exception as exc:
-        logger.exception(
-            "Unhandled error while processing request: %s",
-            exc,
-            extra={"method": method, "path": path},
-        )
+        logger.exception("Unhandled error", exc_info=exc, extra={"method": method, "path": path})
         return err(500, "Internal server error")

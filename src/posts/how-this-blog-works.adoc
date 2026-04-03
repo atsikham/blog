@@ -45,7 +45,7 @@ image::diagrams/how-this-blog-works/hash-routing.svg[Hash routing]
 
 That gives a few nice properties for almost no code:
 
-* refreshing keeps you on the same post
+* refreshing keeps visitor on the same post
 * the back button naturally closes an open modal
 * there is no router library involved
 
@@ -91,7 +91,7 @@ Comments are threaded.
 A comment can reply to another comment, and replies can nest as deep as needed.
 Each thread can be collapsed or expanded so long discussions do not overwhelm the post.
 
-When you click Reply, the form shows who you are replying to.
+When a user click Reply, the form shows whom they are replying to.
 Replies render under their parent with visible indentation and thread structure.
 
 === Storage strategy

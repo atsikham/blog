@@ -1,15 +1,17 @@
-// talks to the Lambda API when CONFIG.API_URL is set,
-// falls back to localStorage when it's not — so local dev just works
+// Talks to the Lambda API when CONFIG.API_URL is set, falls back to
+// localStorage when it isn't. That means local dev just works without
+// any mocking, and the site still functions if the API is down.
 //
-// localStorage is always written first so the UI is instant,
-// the API is just the cross-device source of truth on top of that
+// The pattern: write to localStorage first so the UI is instant, then
+// sync to the server in the background. If the server has a newer value
+// (e.g. likes from another device), overwrite the local cache on the
+// next successful API call.
 
 const Storage = (() => {
 
   const isConfigured = () =>
     typeof CONFIG !== "undefined" && CONFIG.API_URL;
 
-  // just a thin fetch wrapper so I don't repeat headers everywhere
   async function apiFetch(method, path, body = null) {
     const url = `${CONFIG.API_URL}${path}`;
     const res = await fetch(url, {
@@ -18,11 +20,13 @@ const Storage = (() => {
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
     });
+    // Surface rate-limit errors separately so callers can show a friendlier
+    // message than the generic "API call failed" warning.
+    if (res.status === 429) throw new Error("RATE_LIMITED");
     if (!res.ok) throw new Error(`API ${method} ${path}: ${res.status}`);
     return res.json();
   }
 
-  // local cache — keeps reads instant and makes the site work offline
   const _likes    = JSON.parse(localStorage.getItem("blog_likes")    || "{}");
   const _reads    = JSON.parse(localStorage.getItem("blog_reads")    || "{}");
   const _comments = JSON.parse(localStorage.getItem("blog_comments") || "{}");
@@ -33,8 +37,9 @@ const Storage = (() => {
     comments: () => localStorage.setItem("blog_comments", JSON.stringify(_comments)),
   };
 
-  // older local data can have missing or broken replyToId values.
-  // fix them once on startup so the comment tree still renders sensibly.
+  // Old local data sometimes has dangling replyToId values pointing at
+  // comments that no longer exist, or undefined instead of null. Fix it once
+  // at startup so the comment tree doesn't break on old browsers.
   (function migrateComments() {
     let changed = false;
 
@@ -57,22 +62,24 @@ const Storage = (() => {
     if (changed) _save.comments();
   })();
 
-  // ── init ──────────────────────────────────────────────────────
-  // pull server stats for all posts once on startup and merge into cache
-  // non-fatal if it fails — local data is shown in the meantime
+  // Fetch server stats once on startup and merge into the local cache.
+  // The page renders immediately from local data, then re-renders once
+  // the API responds. Non-fatal — if the API is down, local data is fine.
   async function init(postIds) {
     if (!isConfigured() || !postIds.length) return;
     try {
-      // Bulk-fetch likes + reads
       const stats = await apiFetch("GET", `/stats?postIds=${postIds.join(",")}`);
       for (const row of stats) {
         const local = _likes[row.id] || { count: 0, liked: false };
+        // Keep the local "liked" flag — it tracks whether *this browser*
+        // liked the post, which the server doesn't know about.
         _likes[row.id] = { count: row.likes, liked: local.liked };
         _reads[row.id] = row.reads;
       }
       _save.likes(); _save.reads();
 
-      // Fetch comments per post (parallelised)
+      // Fetch comments for all posts in parallel — no point waiting for each
+      // one sequentially when they're all independent.
       await Promise.all(postIds.map(async (id) => {
         const comments = await apiFetch("GET", `/comments?postId=${id}`);
         _comments[id] = comments;
@@ -83,14 +90,14 @@ const Storage = (() => {
     }
   }
 
-  // ── likes ─────────────────────────────────────────────────────
+  // ── likes ────────────────────────────────────────────────��────
 
   function getLikes(postId) {
     return (_likes[postId] || { count: 0 }).count;
   }
 
-  // "liked" is local-only — it tracks whether this browser liked the post,
-  // not some global state. makes sense for a personal blog.
+  // "liked" is per-browser, not per-user. Good enough for a personal blog
+  // where I'm not running accounts.
   function isLiked(postId) {
     return (_likes[postId] || { liked: false }).liked;
   }
@@ -105,11 +112,11 @@ const Storage = (() => {
     if (isConfigured()) {
       try {
         const data = await apiFetch("POST", "/like", { postId, liked: entry.liked });
-        // trust the server count — avoids drift if someone likes from two browsers
+        // Use the server's count rather than the local one — avoids drift
+        // when the same person likes from two different browsers.
         entry.count = data.likes;
         _save.likes();
       } catch (e) {
-        // network hiccup — local count is already saved, good enough
         console.warn("Storage.toggleLike: API call failed.", e.message);
       }
     }
@@ -123,8 +130,8 @@ const Storage = (() => {
   }
 
   async function recordRead(postId) {
-    // sessionStorage means refreshing the same tab doesn't keep adding reads,
-    // but closing and coming back the next day does
+    // sessionStorage prevents the same tab from re-counting a read on refresh,
+    // but a new session (new tab, next day) counts fresh.
     const key = `read_${postId}`;
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
@@ -135,7 +142,7 @@ const Storage = (() => {
     if (isConfigured()) {
       try {
         const data = await apiFetch("POST", "/read", { postId });
-        _reads[postId] = data.reads;   // use server value
+        _reads[postId] = data.reads;
         _save.reads();
       } catch (e) {
         console.warn("Storage.recordRead: API call failed.", e.message);
@@ -153,7 +160,8 @@ const Storage = (() => {
     const date = new Date().toLocaleDateString("en-US", {
       year: "numeric", month: "short", day: "numeric",
     });
-    // generate a local id so replies can reference parent comments immediately
+    // Generate a temporary local ID so replies can reference this comment
+    // immediately, before the server assigns a real UUID.
     const id = `local_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
     const comment = { id, name, text, date, replyToId };
 
@@ -166,10 +174,9 @@ const Storage = (() => {
         const saved = await apiFetch("POST", "/comments", { postId, name, text, replyToId });
         const idx = _comments[postId].findIndex(c => c.id === id);
         if (idx !== -1) {
-          // Swap local comment with the server version.
           _comments[postId][idx] = saved;
-          // If replies already target the temporary local id, point them at the
-          // new durable server id so the UI tree stays intact.
+          // Any replies that already targeted the temp ID need to be updated
+          // to the real server ID, otherwise the tree breaks.
           _comments[postId].forEach(c => {
             if (c.replyToId === id) c.replyToId = saved.id;
           });
@@ -177,6 +184,13 @@ const Storage = (() => {
         _save.comments();
         return saved;
       } catch (e) {
+        if (e.message === "RATE_LIMITED") {
+          // Roll back the optimistic write — the comment never made it to the
+          // server, so showing it locally would be misleading.
+          _comments[postId] = _comments[postId].filter(c => c.id !== id);
+          _save.comments();
+          throw e;
+        }
         console.warn("Storage.addComment: API call failed, comment saved locally.", e.message);
       }
     }

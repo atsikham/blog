@@ -1,97 +1,115 @@
 <svg viewBox="0 0 980 640" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      @font-face {
-        font-family: 'Virgil';
-        src: url('https://excalidraw.com/Virgil.woff2') format('woff2');
-        font-display: swap;
-      }
-      text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }
-      .lbl { font-size: 14px; fill: #1e1e2e; }
-      .dim { font-size: 13px; fill: #4b5563; }
-      .sketch { stroke-linecap: round; stroke-linejoin: round; }
-      .arrow { stroke: #111827; stroke-width: 2.2; fill: none; stroke-linecap: round; }
-    </style>
-    <marker id="arr" markerWidth="16" markerHeight="16" refX="12" refY="8" orient="auto">
-      <path d="M2,2 L12,8 L2,14" fill="none" stroke="#111827" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M3,3 L11,8 L3,13" fill="none" stroke="#111827" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>
-    </marker>
-  </defs>
-  <rect width="980" height="640" fill="#fffdf8"/>
+    <defs>
+        <style>
+            @font-face {
+            font-family: 'Virgil';
+            src: url('https://excalidraw.com/Virgil.woff2') format('woff2');
+            font-display: swap;
+            }
+            text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }
+            .lbl { font-size: 14px; fill: #1e1e2e; }
+            .dim { font-size: 13px; fill: #4b5563; }
+            .sketch { stroke-linecap: round; stroke-linejoin: round; }
+            .arrow { stroke: #111827; stroke-width: 2.2; fill: none; stroke-linecap: round; }
+        </style>
+        <marker id="arr" markerWidth="16" markerHeight="16" refX="12" refY="8" orient="auto">
+            <path d="M2,2 L12,8 L2,14" fill="none" stroke="#111827" stroke-width="2.2" stroke-linecap="round"
+                  stroke-linejoin="round"/>
+            <path d="M3,3 L11,8 L3,13" fill="none" stroke="#111827" stroke-width="1.4" stroke-linecap="round"
+                  stroke-linejoin="round" opacity="0.75"/>
+        </marker>
+    </defs>
+    <rect width="980" height="640" fill="#fffdf8"/>
 
-  <rect x="20" y="44" width="160" height="70" rx="10" fill="#dceafe" stroke="#111827" stroke-width="2.2" class="sketch"/>
-  <rect x="22" y="46" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch" opacity="0.45"/>
-  <text x="100" y="72" text-anchor="middle" font-size="17" font-weight="700">Browser</text>
-  <text x="100" y="94" text-anchor="middle" class="lbl">tikho.me</text>
+    <rect x="20" y="44" width="160" height="70" rx="10" fill="#dceafe" stroke="#111827" stroke-width="2.2"
+          class="sketch"/>
+    <rect x="22" y="46" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch"
+          opacity="0.45"/>
+    <text x="100" y="72" text-anchor="middle" font-size="17" font-weight="700">Browser</text>
+    <text x="100" y="94" text-anchor="middle" class="lbl">tikho.me</text>
 
-  <text x="220" y="63" text-anchor="middle" class="dim">page request</text>
-  <path d="M181,79 L259,79" class="arrow" marker-end="url(#arr)"/>
-  <path d="M181,81 L258,80" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+    <text x="220" y="63" text-anchor="middle" class="dim">page request</text>
+    <path d="M181,79 L259,79" class="arrow" marker-end="url(#arr)"/>
+    <path d="M181,81 L258,80" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
 
-  <rect x="263" y="44" width="160" height="70" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2" class="sketch"/>
-  <rect x="265" y="46" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch" opacity="0.45"/>
-  <text x="343" y="72" text-anchor="middle" font-size="17" font-weight="700">CloudFront</text>
-  <text x="343" y="94" text-anchor="middle" class="lbl">CDN + HTTPS</text>
+    <rect x="263" y="44" width="160" height="70" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2"
+          class="sketch"/>
+    <rect x="265" y="46" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch"
+          opacity="0.45"/>
+    <text x="343" y="72" text-anchor="middle" font-size="17" font-weight="700">CloudFront</text>
+    <text x="343" y="94" text-anchor="middle" class="lbl">CDN + HTTPS</text>
 
-  <text x="463" y="63" text-anchor="middle" class="dim">static origin</text>
-  <path d="M424,79 L502,79" class="arrow" marker-end="url(#arr)"/>
-  <path d="M424,81 L501,80" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+    <text x="463" y="63" text-anchor="middle" class="dim">static origin</text>
+    <path d="M424,79 L502,79" class="arrow" marker-end="url(#arr)"/>
+    <path d="M424,81 L501,80" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
 
-  <rect x="506" y="44" width="160" height="70" rx="10" fill="#fdecc8" stroke="#111827" stroke-width="2.2" class="sketch"/>
-  <rect x="508" y="46" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch" opacity="0.45"/>
-  <text x="586" y="72" text-anchor="middle" font-size="17" font-weight="700">S3 Bucket</text>
-  <text x="586" y="94" text-anchor="middle" class="lbl">static site files</text>
+    <rect x="506" y="44" width="160" height="70" rx="10" fill="#fdecc8" stroke="#111827" stroke-width="2.2"
+          class="sketch"/>
+    <rect x="508" y="46" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch"
+          opacity="0.45"/>
+    <text x="586" y="72" text-anchor="middle" font-size="17" font-weight="700">S3 Bucket</text>
+    <text x="586" y="94" text-anchor="middle" class="lbl">static site files</text>
 
-  <path d="M586,115 L586,140" stroke="#111827" stroke-width="1.7" fill="none" stroke-dasharray="5,4" class="sketch"/>
-  <rect x="506" y="142" width="230" height="168" rx="10" fill="#fffefb" stroke="#111827" stroke-width="2" class="sketch"/>
-  <rect x="508" y="144" width="226" height="164" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
-  <text x="526" y="168" class="lbl">index.html</text>
-  <text x="526" y="191" class="lbl">src/js/app.js</text>
-  <text x="526" y="214" class="lbl">src/css/style.css</text>
-  <text x="526" y="237" class="lbl">posts (*.adoc / *.md)</text>
-  <text x="526" y="260" class="dim">diagram assets</text>
-  <text x="526" y="282" class="dim">manifest.json</text>
+    <path d="M586,115 L586,140" stroke="#111827" stroke-width="1.7" fill="none" stroke-dasharray="5,4" class="sketch"/>
+    <rect x="506" y="142" width="230" height="168" rx="10" fill="#fffefb" stroke="#111827" stroke-width="2"
+          class="sketch"/>
+    <rect x="508" y="144" width="226" height="164" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
+          opacity="0.35"/>
+    <text x="526" y="168" class="lbl">index.html</text>
+    <text x="526" y="191" class="lbl">src/js/app.js</text>
+    <text x="526" y="214" class="lbl">src/css/style.css</text>
+    <text x="526" y="237" class="lbl">posts (*.adoc / *.md)</text>
+    <text x="526" y="260" class="dim">diagram assets</text>
+    <text x="526" y="282" class="dim">manifest.json</text>
 
-  <path d="M100,115 L100,308" class="arrow" stroke-dasharray="6,4" marker-end="url(#arr)"/>
-  <path d="M102,116 L101,307" class="arrow" stroke-dasharray="6,4" marker-end="url(#arr)" opacity="0.35"/>
-  <text x="114" y="218" font-size="14" fill="#4b5563">likes / reads / comments</text>
+    <path d="M100,115 L100,308" class="arrow" stroke-dasharray="6,4" marker-end="url(#arr)"/>
+    <path d="M102,116 L101,307" class="arrow" stroke-dasharray="6,4" marker-end="url(#arr)" opacity="0.35"/>
+    <text x="114" y="218" font-size="14" fill="#4b5563">likes / reads / comments</text>
 
-  <rect x="20" y="312" width="160" height="70" rx="10" fill="#ece7fb" stroke="#111827" stroke-width="2.2" class="sketch"/>
-  <rect x="22" y="314" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch" opacity="0.45"/>
-  <text x="100" y="340" text-anchor="middle" font-size="17" font-weight="700">API Gateway</text>
-  <text x="100" y="362" text-anchor="middle" class="lbl">HTTP API</text>
+    <rect x="20" y="312" width="160" height="70" rx="10" fill="#ece7fb" stroke="#111827" stroke-width="2.2"
+          class="sketch"/>
+    <rect x="22" y="314" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch"
+          opacity="0.45"/>
+    <text x="100" y="340" text-anchor="middle" font-size="17" font-weight="700">API Gateway</text>
+    <text x="100" y="362" text-anchor="middle" class="lbl">HTTP API</text>
 
-  <path d="M181,347 L259,347" class="arrow" marker-end="url(#arr)"/>
-  <path d="M181,349 L258,348" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+    <path d="M181,347 L259,347" class="arrow" marker-end="url(#arr)"/>
+    <path d="M181,349 L258,348" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
 
-  <rect x="263" y="312" width="160" height="70" rx="10" fill="#d9f2ef" stroke="#111827" stroke-width="2.2" class="sketch"/>
-  <rect x="265" y="314" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch" opacity="0.45"/>
-  <text x="343" y="340" text-anchor="middle" font-size="17" font-weight="700">Lambda</text>
-  <text x="343" y="362" text-anchor="middle" class="lbl">Python backend</text>
+    <rect x="263" y="312" width="160" height="70" rx="10" fill="#d9f2ef" stroke="#111827" stroke-width="2.2"
+          class="sketch"/>
+    <rect x="265" y="314" width="156" height="66" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch"
+          opacity="0.45"/>
+    <text x="343" y="340" text-anchor="middle" font-size="17" font-weight="700">Lambda</text>
+    <text x="343" y="362" text-anchor="middle" class="lbl">Python backend</text>
 
-  <path d="M343,383 L343,408" stroke="#111827" stroke-width="1.7" fill="none" stroke-dasharray="5,4" class="sketch"/>
+    <path d="M343,383 L343,408" stroke="#111827" stroke-width="1.7" fill="none" stroke-dasharray="5,4" class="sketch"/>
 
-  <rect x="20" y="410" width="408" height="210" rx="10" fill="#fffefb" stroke="#111827" stroke-width="2" class="sketch"/>
-  <rect x="22" y="412" width="404" height="206" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
-  <text x="42" y="440" font-size="14" fill="#0f766e" font-weight="600">GET  /stats</text>
-  <text x="210" y="440" class="dim">bulk likes + reads</text>
-  <text x="42" y="466" font-size="14" fill="#0f766e" font-weight="600">POST /like</text>
-  <text x="210" y="466" class="dim">toggle like</text>
-  <text x="42" y="492" font-size="14" fill="#0f766e" font-weight="600">POST /read</text>
-  <text x="210" y="492" class="dim">record a view</text>
-  <text x="42" y="518" font-size="14" fill="#0f766e" font-weight="600">GET  /comments</text>
-  <text x="210" y="518" class="dim">list comments</text>
-  <text x="42" y="544" font-size="14" fill="#0f766e" font-weight="600">POST /comments</text>
-  <text x="210" y="544" class="dim">add comment / reply</text>
-  <text x="42" y="592" font-size="13" fill="#4b5563">one Lambda handles all blog API routes</text>
+    <rect x="20" y="410" width="408" height="210" rx="10" fill="#fffefb" stroke="#111827" stroke-width="2"
+          class="sketch"/>
+    <rect x="22" y="412" width="404" height="206" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
+          opacity="0.35"/>
+    <text x="42" y="440" font-size="14" fill="#0f766e" font-weight="600">GET /stats</text>
+    <text x="210" y="440" class="dim">bulk likes + reads</text>
+    <text x="42" y="466" font-size="14" fill="#0f766e" font-weight="600">POST /like</text>
+    <text x="210" y="466" class="dim">toggle like</text>
+    <text x="42" y="492" font-size="14" fill="#0f766e" font-weight="600">POST /read</text>
+    <text x="210" y="492" class="dim">record a view</text>
+    <text x="42" y="518" font-size="14" fill="#0f766e" font-weight="600">GET /comments</text>
+    <text x="210" y="518" class="dim">list comments</text>
+    <text x="42" y="544" font-size="14" fill="#0f766e" font-weight="600">POST /comments</text>
+    <text x="210" y="544" class="dim">add comment / reply</text>
+    <text x="42" y="592" font-size="13" fill="#4b5563">one Lambda handles all blog API routes</text>
 
-  <path d="M429,500 C530,484 600,472 644,470" class="arrow" marker-end="url(#arr)"/>
-  <path d="M429,502 C531,487 601,474 644,472" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+    <path d="M429,500 C530,484 600,472 644,470" class="arrow" marker-end="url(#arr)"/>
+    <path d="M429,502 C531,487 601,474 644,472" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
 
-  <rect x="648" y="412" width="280" height="114" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2" class="sketch"/>
-  <rect x="650" y="414" width="276" height="110" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch" opacity="0.45"/>
-  <text x="788" y="452" text-anchor="middle" font-size="17" font-weight="700">DynamoDB</text>
-  <text x="788" y="476" text-anchor="middle" class="lbl">post stats</text>
-  <text x="788" y="500" text-anchor="middle" class="lbl">comment threads</text>
+    <rect x="648" y="412" width="280" height="114" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2"
+          class="sketch"/>
+    <rect x="650" y="414" width="276" height="110" rx="9" fill="none" stroke="#111827" stroke-width="1.2" class="sketch"
+          opacity="0.45"/>
+    <text x="788" y="452" text-anchor="middle" font-size="17" font-weight="700">DynamoDB</text>
+    <text x="788" y="476" text-anchor="middle" class="lbl">post stats</text>
+    <text x="788" y="500" text-anchor="middle" class="lbl">comment threads</text>
 </svg>
 

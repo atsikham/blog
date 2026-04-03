@@ -199,12 +199,17 @@ async function loadPosts() {
 //  State
 // ============================================================
 
+const POSTS_PER_PAGE = 6;
+const TAGS_VISIBLE = 15;
+
 const state = {
   posts: [],
   currentPage: "home",
   activeFilters: new Set(),
   searchQuery: "",
   openPostId: null,
+  currentPaginationPage: 1,
+  tagsExpanded: false,
   // comment threads are collapsed by default; this set tracks the ones the
   // reader has explicitly expanded in the current modal session.
   expandedCommentThreads: new Set(),
@@ -226,9 +231,11 @@ function fmtCount(n) {
 }
 
 function getAllTags() {
-  const tags = new Set();
-  state.posts.forEach((p) => p.tags.forEach((t) => tags.add(t)));
-  return [...tags].sort();
+  const freq = {};
+  state.posts.forEach((p) => p.tags.forEach((t) => { freq[t] = (freq[t] || 0) + 1; }));
+  return Object.entries(freq)
+    .sort(([a, ca], [b, cb]) => cb - ca || a.localeCompare(b))
+    .map(([tag]) => tag);
 }
 
 function buildCommentTree(comments) {
@@ -331,30 +338,53 @@ function renderTagFilter() {
   const container = document.getElementById("tagFilter");
   const hasFilters = state.activeFilters.size > 0;
 
-  // "All Posts" is active when nothing is selected, so the filter row always
-  // has a clear default state rather than showing nothing highlighted.
+  const visibleTags = tags.slice(0, TAGS_VISIBLE);
+  const hiddenTags  = tags.slice(TAGS_VISIBLE);
+  const hasHidden   = hiddenTags.length > 0;
+
+  // Always surface active tags that would otherwise be hidden, so a selected
+  // tag is never invisible regardless of the collapsed state.
+  const alwaysShow = new Set(
+    hiddenTags.filter(t => state.activeFilters.has(t))
+  );
+
+  const tagBtn = (t) =>
+    `<button class="tag-btn ${state.activeFilters.has(t) ? "active" : ""}" data-tag="${t}">${t}</button>`;
+
+  const hiddenHtml = hiddenTags
+    .filter(t => !alwaysShow.has(t))
+    .map(tagBtn).join("");
+
   container.innerHTML = `
     <button class="tag-btn ${!hasFilters ? "active" : ""}" data-tag="__all__">All Posts</button>
-    ${tags.map((t) => `
-      <button class="tag-btn ${state.activeFilters.has(t) ? "active" : ""}" data-tag="${t}">${t}</button>
-    `).join("")}
+    ${visibleTags.map(tagBtn).join("")}
+    ${[...alwaysShow].map(tagBtn).join("")}
+    ${hasHidden ? `
+      <span class="tags-overflow ${state.tagsExpanded ? "" : "tags-overflow-hidden"}">${hiddenHtml}</span>
+      <button class="tag-btn tag-btn-expand" data-tag="__expand__">
+        ${state.tagsExpanded ? "▲ Less" : `+${hiddenTags.length - alwaysShow.size} more`}
+      </button>
+    ` : ""}
     ${hasFilters ? `<button class="tag-btn tag-btn-clear" data-tag="__clear__">✕ Clear</button>` : ""}
   `;
 
   container.querySelectorAll(".tag-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tag = btn.dataset.tag;
+      if (tag === "__expand__") {
+        state.tagsExpanded = !state.tagsExpanded;
+        renderTagFilter();
+        return;
+      }
       if (tag === "__all__" || tag === "__clear__") {
         state.activeFilters.clear();
       } else if (state.activeFilters.has(tag)) {
-        // Second click on an active tag deselects it (toggle behaviour).
         state.activeFilters.delete(tag);
       } else {
         state.activeFilters.add(tag);
       }
-      // Changing the tag filter while a search is active would show a confusing
-      // intersection of two filter dimensions — reset search to keep it simple.
       state.searchQuery = "";
+      state.currentPaginationPage = 1;
       const inp = document.getElementById("searchInput");
       const clr = document.getElementById("searchClear");
       if (inp) inp.value = "";
@@ -402,10 +432,19 @@ function renderPostGrid() {
 
   if (!filtered.length) {
     grid.innerHTML = `<p style="color:var(--text-muted);grid-column:1/-1;padding:20px 0">No posts match your search.</p>`;
+    renderPagination(0, 0);
     return;
   }
 
-  grid.innerHTML = filtered.map((post) => renderPostCard(post)).join("");
+  const totalPages = Math.ceil(filtered.length / POSTS_PER_PAGE);
+  // Clamp currentPaginationPage in case filters reduced the total
+  if (state.currentPaginationPage > totalPages) state.currentPaginationPage = totalPages;
+  if (state.currentPaginationPage < 1) state.currentPaginationPage = 1;
+
+  const start = (state.currentPaginationPage - 1) * POSTS_PER_PAGE;
+  const pagePosts = filtered.slice(start, start + POSTS_PER_PAGE);
+
+  grid.innerHTML = pagePosts.map((post) => renderPostCard(post)).join("");
 
   // Attach card events
   grid.querySelectorAll(".post-card[data-id]").forEach((card) => {
@@ -426,6 +465,48 @@ function renderPostGrid() {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       openPost(btn.dataset.id, true);
+    });
+  });
+
+  renderPagination(state.currentPaginationPage, totalPages);
+}
+
+function renderPagination(currentPage, totalPages) {
+  const container = document.getElementById("pagination");
+  if (!container) return;
+
+  if (totalPages <= 1) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const btn = (label, page, disabled, active, ariaLabel) =>
+    `<button class="page-btn${active ? " active" : ""}" data-page="${page}"
+      ${disabled ? "disabled" : ""} aria-label="${ariaLabel || label}"
+      ${active ? 'aria-current="page"' : ""}>${label}</button>`;
+
+  // Build page window: always show first, last, current ±1, with ellipsis gaps
+  const pages = new Set([1, totalPages, currentPage, currentPage - 1, currentPage + 1]
+    .filter(p => p >= 1 && p <= totalPages));
+  const sorted = [...pages].sort((a, b) => a - b);
+
+  let html = btn("‹", currentPage - 1, currentPage === 1, false, "Previous page");
+  let prev = 0;
+  for (const p of sorted) {
+    if (p - prev > 1) html += `<span class="page-ellipsis">…</span>`;
+    html += btn(p, p, false, p === currentPage, `Page ${p}`);
+    prev = p;
+  }
+  html += btn("›", currentPage + 1, currentPage === totalPages, false, "Next page");
+
+  container.innerHTML = html;
+
+  container.querySelectorAll(".page-btn:not([disabled])").forEach((b) => {
+    b.addEventListener("click", () => {
+      state.currentPaginationPage = +b.dataset.page;
+      renderPostGrid();
+      // scroll back to top of the grid smoothly
+      document.getElementById("postsGrid")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 }
@@ -549,6 +630,7 @@ function openPost(postId, scrollToComments = false, skipAnimation = false) {
               <input class="form-input" id="commentEmail" type="email" placeholder="Email (optional)" maxlength="120" />
             </div>
             <textarea class="form-input" id="commentText" placeholder="Share your thoughts…" required maxlength="1000"></textarea>
+            <div class="char-counter"><span id="charCount">0</span> / 1000</div>
             <br/>
             <button class="submit-btn" type="submit">Post Comment</button>
           </form>
@@ -706,6 +788,20 @@ function scrollToCommentForm() {
 function bindCommentInteractions() {
   const list = document.getElementById("commentsList");
   if (!list) return;
+
+  // Live character counter for the comment textarea
+  const textarea = document.getElementById("commentText");
+  const charCount = document.getElementById("charCount");
+  if (textarea && charCount) {
+    const update = () => {
+      const len = textarea.value.length;
+      charCount.textContent = len;
+      charCount.closest(".char-counter").classList.toggle("char-counter-warn", len >= 900);
+      charCount.closest(".char-counter").classList.toggle("char-counter-limit", len >= 1000);
+    };
+    textarea.addEventListener("input", update);
+    update(); // sync on re-render if text was pre-filled
+  }
 
   document.querySelectorAll(".reply-btn").forEach((btn) => {
     btn.onclick = () => {
@@ -953,8 +1049,18 @@ async function submitComment(postId) {
   const replyToId = _pendingReplyToId || null;
   _pendingReplyToId = null;
 
-  await Storage.addComment(postId, name, text, replyToId);
-  showToast(replyToId ? "Reply posted!" : "Comment posted!", "💬");
+  let saved;
+  try {
+    saved = await Storage.addComment(postId, name, text, replyToId);
+  } catch (e) {
+    if (e?.message === "RATE_LIMITED") {
+      showToast("You're posting too fast — please wait a moment.", "⏳");
+    } else {
+      showToast("Comment saved locally (API unavailable).", "⚠️");
+    }
+    return;
+  }
+  void saved;  showToast(replyToId ? "Reply posted!" : "Comment posted!", "💬");
 
   const replyBanner = document.getElementById("replyBanner");
   if (replyBanner) replyBanner.remove();
@@ -979,6 +1085,11 @@ async function submitComment(postId) {
   document.querySelector(".scroll-to-comments span").textContent =
     `${comments.length} comment${comments.length !== 1 ? "s" : ""}`;
   document.getElementById("commentForm").reset();
+  const charCount = document.getElementById("charCount");
+  if (charCount) {
+    charCount.textContent = "0";
+    charCount.closest(".char-counter").classList.remove("char-counter-warn", "char-counter-limit");
+  }
 
   renderPostGrid();
 }
@@ -1112,6 +1223,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   searchInput?.addEventListener("input", () => {
     state.searchQuery = searchInput.value;
+    state.currentPaginationPage = 1;
     searchClear.style.display = state.searchQuery ? "block" : "none";
     renderPostGrid();
   });
@@ -1119,6 +1231,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   searchClear?.addEventListener("click", () => {
     searchInput.value = "";
     state.searchQuery = "";
+    state.currentPaginationPage = 1;
     searchClear.style.display = "none";
     searchInput.focus();
     renderPostGrid();
