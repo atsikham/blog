@@ -289,14 +289,35 @@
   }
 
   // ── Resize ────────────────────────────────────────────────────
+  let lastW = 0, lastH = 0, resizeTimer = null;
+
   function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    // On mobile, scrolling causes the browser chrome (address bar) to
+    // appear/disappear, firing a resize event where only the height changes
+    // by a small amount. Ignore those to prevent the background from
+    // rebuilding on every scroll gesture.
+    const widthChanged  = W !== lastW;
+    const heightChanged = Math.abs(H - lastH) > 80; // > 80px = real resize
+
+    if (!widthChanged && !heightChanged) return;
+
+    lastW = W;
+    lastH = H;
+    canvas.width  = W;
+    canvas.height = H;
     buildSymbols();
     draw();
   }
 
-  window.addEventListener("resize", resize);
+  function debouncedResize() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 150);
+  }
+
+  window.addEventListener("resize", debouncedResize);
 
   // Redraw when theme changes so colour updates immediately.
   new MutationObserver(() => draw())

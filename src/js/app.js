@@ -351,18 +351,19 @@ function renderTagFilter() {
   const tagBtn = (t) =>
     `<button class="tag-btn ${state.activeFilters.has(t) ? "active" : ""}" data-tag="${t}">${t}</button>`;
 
-  const hiddenHtml = hiddenTags
-    .filter(t => !alwaysShow.has(t))
-    .map(tagBtn).join("");
+  const collapsedHiddenTags = hiddenTags.filter(t => !alwaysShow.has(t));
+  const hiddenHtml = collapsedHiddenTags.map(tagBtn).join("");
+  // Only show the expand button if there are tags that are actually hidden
+  const hasCollapsible = hasHidden && collapsedHiddenTags.length > 0;
 
   container.innerHTML = `
     <button class="tag-btn ${!hasFilters ? "active" : ""}" data-tag="__all__">All Posts</button>
     ${visibleTags.map(tagBtn).join("")}
     ${[...alwaysShow].map(tagBtn).join("")}
-    ${hasHidden ? `
+    ${hasCollapsible ? `
       <span class="tags-overflow ${state.tagsExpanded ? "" : "tags-overflow-hidden"}">${hiddenHtml}</span>
       <button class="tag-btn tag-btn-expand" data-tag="__expand__">
-        ${state.tagsExpanded ? "▲ Less" : `+${hiddenTags.length - alwaysShow.size} more`}
+        ${state.tagsExpanded ? "▲ Less" : `+${collapsedHiddenTags.length} more`}
       </button>
     ` : ""}
     ${hasFilters ? `<button class="tag-btn tag-btn-clear" data-tag="__clear__">✕ Clear</button>` : ""}

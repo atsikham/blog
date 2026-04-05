@@ -66,8 +66,7 @@
     <g transform="translate(254.58103389317307 53.1543923199024) rotate(0 98.20555877685536 17.402097803359425)">
         <text x="98.20555877685547" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Authentication
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Authentication</text>
     </g>
     <g stroke-linecap="round"
        transform="translate(581.8507968402237 379.83705880106004) rotate(0 126.95185624407327 37.85145065126687)">
@@ -79,8 +78,7 @@
     <g transform="translate(636.6135661702347 400.2864116489675) rotate(0 72.1890869140625 17.402097803359425)">
         <text x="72.1890869140625" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Webhook(s)
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Webhook(s)</text>
     </g>
     <g stroke-linecap="round"
        transform="translate(1305.480614959486 173.45875786364172) rotate(0 126.95185624407327 40)">
@@ -92,12 +90,10 @@
     <g transform="translate(1359.9510564086377 178.65456225692287) rotate(0 72.48141479492188 34.804195606718736)">
         <text x="72.48141479492188" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Validation
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Validation</text>
         <text x="72.48141479492188" y="59.334192670334176" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Admission
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Admission</text>
     </g>
     <g stroke-linecap="round"
        transform="translate(579.8656488203733 182.78702622876176) rotate(0 126.95185624407327 40)">
@@ -109,12 +105,10 @@
     <g transform="translate(639.7509691147397 187.9828306220429) rotate(0 67.06653594970703 34.804195606718736)">
         <text x="67.06653594970703" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Mutating
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Mutating</text>
         <text x="67.06653594970703" y="59.334192670334176" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Admission
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Admission</text>
     </g>
     <g stroke-linecap="round"
        transform="translate(942.646631127529 180.8886079767699) rotate(0 126.95185624407327 37.85145065126687)">
@@ -126,8 +120,7 @@
     <g transform="translate(949.0791697446493 201.33796082467734) rotate(0 120.51931762695312 17.402097803359425)">
         <text x="120.51931762695312" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Schema Validation
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Schema Validation</text>
     </g>
     <g stroke-linecap="round"
        transform="translate(940.1459228209706 30.5521920366225) rotate(0 126.95185624407327 37.85145065126687)">
@@ -139,8 +132,7 @@
     <g transform="translate(950.448235302837 51.00154488452995) rotate(0 116.64954376220703 17.402097803359425)">
         <text x="116.64954376220703" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Admission Control
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Admission Control</text>
     </g>
     <g stroke-linecap="round"
        transform="translate(582.0194380555017 32.45542860905175) rotate(0 126.95185624407327 37.85145065126687)">
@@ -152,8 +144,7 @@
     <g transform="translate(618.0737341799463 52.9047814569592) rotate(0 90.8975601196289 17.402097803359425)">
         <text x="90.8975601196289" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Authorization
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Authorization</text>
     </g>
     <g stroke-linecap="round">
         <g transform="translate(1424.303145760488 11.23031953974646) rotate(0 2.197972985700062 57.489398140260505)">
@@ -237,8 +228,7 @@
     <g transform="translate(1404.330039469753 99.47330514639543) rotate(0 21.306060791015625 12.20488343145621)">
         <text x="21.306060791015625" y="17.204003684980655" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="19.527813490329915px" fill="#fff" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">etcd
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">etcd</text>
     </g>
     <g stroke-linecap="round"
        transform="translate(1308.251149210489 370.42206066808285) rotate(0 126.95185624407327 37.85145065126687)">
@@ -250,8 +240,7 @@
     <g transform="translate(1363.0139185405 390.8714135159903) rotate(0 72.1890869140625 17.402097803359425)">
         <text x="72.1890869140625" y="24.529997063615394" font-family="Virgil, sans-serif, Segoe UI Emoji"
               font-size="27.843356485375022px" fill="#1e1e1e" text-anchor="middle" style="white-space: pre;"
-              direction="ltr" dominant-baseline="alphabetic">Webhook(s)
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Webhook(s)</text>
     </g>
     <g stroke-linecap="round">
         <g transform="translate(9.726995909586549 322.01112054416535) rotate(0 789.3596153045955 -1.9004673882702718)">
@@ -390,7 +379,6 @@
     </g>
     <g transform="translate(28.33534943546283 418.43053079955075) rotate(0 50.44197082519531 17.5)">
         <text x="0" y="24.668" font-family="Virgil, sans-serif, Segoe UI Emoji" font-size="28px" fill="#1e1e1e"
-              text-anchor="start" style="white-space: pre;" direction="ltr" dominant-baseline="alphabetic">Kyverno
-        </text>
+              direction="ltr" dominant-baseline="alphabetic">Kyverno</text>
     </g>
 </svg>

@@ -1,71 +1,53 @@
 <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-        <style>
-            @font-face {
-            font-family: 'Virgil';
-            src: url('https://excalidraw.com/Virgil.woff2') format('woff2');
-            font-display: swap;
-            }
-            text { font-family: 'Virgil', 'Segoe Print', 'Comic Sans MS', cursive; fill: #1e1e2e; }
-            .dim { fill: #4b5563; }
-            .sketch { stroke-linecap: round; stroke-linejoin: round; }
-            .arrow { stroke: #111827; stroke-width: 2.2; fill: none; stroke-linecap: round; }
-        </style>
-        <marker id="arr" markerWidth="16" markerHeight="16" refX="12" refY="8" orient="auto">
-            <path d="M2,2 L12,8 L2,14" fill="none" stroke="#111827" stroke-width="2.2" stroke-linecap="round"
-                  stroke-linejoin="round"/>
-            <path d="M3,3 L11,8 L3,13" fill="none" stroke="#111827" stroke-width="1.4" stroke-linecap="round"
-                  stroke-linejoin="round" opacity="0.75"/>
-        </marker>
-    </defs>
-    <rect width="700" height="260" fill="#fffdf8"/>
+  <defs>
+    <style>
+      @font-face { font-family: 'Virgil'; src: url(data:font/woff2;base64,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) format('woff2'); font-display: swap; }
+      text { font-family: 'Virgil', sans-serif; fill: #1e1e2e; }
+      .dim { fill: #4b5563; }
+      .sketch { stroke-linecap: round; stroke-linejoin: round; }
+      .arrow { stroke: #111827; stroke-width: 2.2; fill: none; stroke-linecap: round; }
+    </style>
+    <marker id="arr" markerWidth="16" markerHeight="16" refX="12" refY="8" orient="auto">
+      <path d="M2,2 L12,8 L2,14" fill="none" stroke="#111827" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M3,3 L11,8 L3,13" fill="none" stroke="#111827" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.75"/>
+    </marker>
+  </defs>
+  <rect width="700" height="260" fill="#fffdf8"/>
 
-    <rect x="16" y="18" width="170" height="58" rx="10" fill="#dceafe" stroke="#111827" stroke-width="2.2"
-          class="sketch"/>
-    <rect x="18" y="20" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
-          opacity="0.35"/>
-    <text x="101" y="44" text-anchor="middle" font-size="16" font-weight="700"># (empty)</text>
-    <text x="101" y="65" text-anchor="middle" font-size="13" class="dim">no hash</text>
-    <path d="M190,47 L257,47" class="arrow" marker-end="url(#arr)"/>
-    <path d="M190,49 L256,48" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
-    <rect x="261" y="18" width="170" height="58" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2"
-          class="sketch"/>
-    <rect x="263" y="20" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
-          opacity="0.35"/>
-    <text x="346" y="44" text-anchor="middle" font-size="16" font-weight="700">home page</text>
-    <text x="346" y="65" text-anchor="middle" font-size="13" class="dim">post list</text>
-    <text x="458" y="44" font-size="13" class="dim">↺ refresh restores state</text>
+  <rect x="16" y="18" width="170" height="58" rx="10" fill="#dceafe" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="18" y="20" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="101" y="44" text-anchor="middle" font-size="16" font-weight="700"># (empty)</text>
+  <text x="101" y="65" text-anchor="middle" font-size="13" class="dim">no hash</text>
+  <path d="M190,47 L257,47" class="arrow" marker-end="url(#arr)"/>
+  <path d="M190,49 L256,48" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+  <rect x="261" y="18" width="170" height="58" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="263" y="20" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="346" y="44" text-anchor="middle" font-size="16" font-weight="700">home page</text>
+  <text x="346" y="65" text-anchor="middle" font-size="13" class="dim">post list</text>
+  <text x="458" y="44" font-size="13" class="dim">↺ refresh restores state</text>
 
-    <rect x="16" y="100" width="170" height="58" rx="10" fill="#ece7fb" stroke="#111827" stroke-width="2.2"
-          class="sketch"/>
-    <rect x="18" y="102" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
-          opacity="0.35"/>
-    <text x="101" y="126" text-anchor="middle" font-size="16" font-weight="700">#post-{id}</text>
-    <text x="101" y="147" text-anchor="middle" font-size="13" class="dim">post id</text>
-    <path d="M190,129 L257,129" class="arrow" marker-end="url(#arr)"/>
-    <path d="M190,131 L256,130" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
-    <rect x="261" y="100" width="170" height="58" rx="10" fill="#ece7fb" stroke="#111827" stroke-width="2.2"
-          class="sketch"/>
-    <rect x="263" y="102" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
-          opacity="0.35"/>
-    <text x="346" y="124" text-anchor="middle" font-size="16" font-weight="700">post modal</text>
-    <text x="346" y="145" text-anchor="middle" font-size="12" class="dim">home + open post</text>
-    <text x="458" y="126" font-size="13" class="dim">← back closes modal</text>
+  <rect x="16" y="100" width="170" height="58" rx="10" fill="#ece7fb" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="18" y="102" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="101" y="126" text-anchor="middle" font-size="16" font-weight="700">#post-{id}</text>
+  <text x="101" y="147" text-anchor="middle" font-size="13" class="dim">post id</text>
+  <path d="M190,129 L257,129" class="arrow" marker-end="url(#arr)"/>
+  <path d="M190,131 L256,130" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+  <rect x="261" y="100" width="170" height="58" rx="10" fill="#ece7fb" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="263" y="102" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="346" y="124" text-anchor="middle" font-size="16" font-weight="700">post modal</text>
+  <text x="346" y="145" text-anchor="middle" font-size="12" class="dim">home + open post</text>
+  <text x="458" y="126" font-size="13" class="dim">← back closes modal</text>
 
-    <rect x="16" y="182" width="170" height="58" rx="10" fill="#dceafe" stroke="#111827" stroke-width="2.2"
-          class="sketch"/>
-    <rect x="18" y="184" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
-          opacity="0.35"/>
-    <text x="101" y="208" text-anchor="middle" font-size="16" font-weight="700">#about</text>
-    <text x="101" y="229" text-anchor="middle" font-size="13" class="dim">about tab</text>
-    <path d="M190,211 L257,211" class="arrow" marker-end="url(#arr)"/>
-    <path d="M190,213 L256,212" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
-    <rect x="261" y="182" width="170" height="58" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2"
-          class="sketch"/>
-    <rect x="263" y="184" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch"
-          opacity="0.35"/>
-    <text x="346" y="208" text-anchor="middle" font-size="16" font-weight="700">about page</text>
-    <text x="346" y="229" text-anchor="middle" font-size="13" class="dim">skills + bio</text>
-    <text x="458" y="210" font-size="13" class="dim">nav links update hash</text>
+  <rect x="16" y="182" width="170" height="58" rx="10" fill="#dceafe" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="18" y="184" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="101" y="208" text-anchor="middle" font-size="16" font-weight="700">#about</text>
+  <text x="101" y="229" text-anchor="middle" font-size="13" class="dim">about tab</text>
+  <path d="M190,211 L257,211" class="arrow" marker-end="url(#arr)"/>
+  <path d="M190,213 L256,212" class="arrow" marker-end="url(#arr)" opacity="0.35"/>
+  <rect x="261" y="182" width="170" height="58" rx="10" fill="#dff3e4" stroke="#111827" stroke-width="2.2" class="sketch"/>
+  <rect x="263" y="184" width="166" height="54" rx="9" fill="none" stroke="#111827" stroke-width="1.1" class="sketch" opacity="0.35"/>
+  <text x="346" y="208" text-anchor="middle" font-size="16" font-weight="700">about page</text>
+  <text x="346" y="229" text-anchor="middle" font-size="13" class="dim">skills + bio</text>
+  <text x="458" y="210" font-size="13" class="dim">nav links update hash</text>
 </svg>
 
