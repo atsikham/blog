@@ -253,6 +253,23 @@ nav {
   color: var(--like-red) !important;
 }
 
+.tag-btn-expand {
+  border-style: dashed;
+  color: var(--primary);
+  border-color: var(--tag-border);
+  background: var(--tag-bg);
+}
+.tag-btn-expand:hover {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: #fff !important;
+  border-style: solid;
+}
+
+/* hidden tags wrapper — toggled by .tags-overflow-hidden */
+.tags-overflow { display: contents; }
+.tags-overflow-hidden { display: none; }
+
 /* ===== Post Grid ===== */
 .posts-section { padding: 0 20px 80px; }
 
@@ -674,6 +691,16 @@ nav {
 .form-input::placeholder { color: var(--text-muted); }
 textarea.form-input { resize: vertical; min-height: 88px; }
 
+.char-counter {
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  transition: color var(--transition);
+}
+.char-counter-warn  { color: #d97706 !important; }
+.char-counter-limit { color: #dc2626 !important; font-weight: 600; }
+
 .submit-btn {
   margin-top: 10px;
   padding: 9px 22px;
@@ -816,6 +843,24 @@ textarea.form-input { resize: vertical; min-height: 88px; }
   font-weight: 800;
   color: #fff;
   margin: 0 auto 18px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Photo fills the circle; if it loads the initials underneath are hidden */
+.about-avatar-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* Initials show through the gradient background when there's no photo */
+.about-avatar-initials {
+  position: relative;
+  z-index: 0;
 }
 
 .about-name { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 1.7rem; font-weight: 700; margin-bottom: 4px; }
@@ -894,4 +939,55 @@ footer { border-top: 1px solid var(--border); padding: 24px 20px; text-align: ce
   .modal-content-topbar { padding: 8px 18px; }
   .modal-body { padding: 20px 18px; }
   .comments-section { padding: 20px 18px 28px; }
+}
+
+/* ===== Pagination ===== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn:hover:not([disabled]) {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.page-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.page-btn[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.page-ellipsis {
+  color: var(--text-muted);
+  padding: 0 4px;
+  line-height: 38px;
 }

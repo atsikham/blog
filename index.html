@@ -3,9 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="tikho.me — a personal blog about technology, engineering, and the ideas worth writing down." />
   <title>tikho.me</title>
+  <meta name="description" content="tikho.me — a personal blog about technology, engineering, and the ideas worth writing down." />
   <link rel="canonical" href="https://tikho.me" />
+
+  <!-- Favicon — SVG scales perfectly on all displays -->
+  <link rel="icon" type="image/svg+xml" href="src/images/favicon.svg" />
+  <!-- PNG fallback for older browsers that don't support SVG favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="src/images/favicon.png" />
+  <!-- Apple touch icon for iOS home screen bookmarks -->
+  <link rel="apple-touch-icon" href="src/images/favicon.svg" />
+
+  <!-- Open Graph — controls how the link looks when shared on Slack, LinkedIn, Twitter etc. -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://tikho.me" />
+  <meta property="og:title"       content="tikho.me" />
+  <meta property="og:description" content="A personal blog about platform engineering, cloud infrastructure, and the ideas worth writing down." />
+  <meta property="og:image"       content="https://tikho.me/src/images/og-image.svg" />
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="tikho.me" />
+  <meta name="twitter:description" content="A personal blog about platform engineering, cloud infrastructure, and the ideas worth writing down." />
+  <meta name="twitter:image"       content="https://tikho.me/src/images/og-image.svg" />
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -80,7 +100,13 @@
   <div id="page-about" class="page">
     <section class="about-section container">
       <div class="about-card">
-        <div class="about-avatar">AT</div>
+        <div class="about-avatar">
+          <img src="src/images/avatar.jpg"
+               alt="Anatoli Tsikhamirau"
+               class="about-avatar-img"
+               onerror="this.style.display='none'">
+          <span class="about-avatar-initials">AT</span>
+        </div>
         <h1 class="about-name">Anatoli Tsikhamirau</h1>
         <p class="about-title">Platform Engineer</p>
         <p class="about-bio">

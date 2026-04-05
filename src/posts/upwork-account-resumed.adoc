@@ -1,0 +1,87 @@
+= Success story: how my Upwork account was resumed after 4 years of suspension
+
+I've read plenty of LinkedIn posts about Upwork suspensions that ended nowhere — no response, no reinstatement, just silence.
+I wanted to share my case because the outcome was different, and I think it's worth knowing that getting your account back is sometimes possible.
+
+== How it started
+
+In March 2022, Upwork announced they were suspending accounts for freelancers based in Russia and Belarus.
+By that point I hadn't been using the account for a while anyway, so I didn't really care.
+I received the standard email:
+
+[source]
+----
+On March 7th, we made the difficult decision to suspend business operations in Russia and Belarus.
+As of today, we've suspended access to your Upwork account because our records indicate you are located in one of these countries.
+If and when you relocate to a region where we operate, we'll be happy to review your account for reinstatement.
+In the meantime, we're taking measures to ensure that the reputation you've built on our site, including customer feedback and your Job Success Score, remains intact.
+
+...Our support team members are also here to help. For more information, please visit support-appeals@upwork.com.
+----
+
+The key sentence there was: _"If and when you relocate to a region where we operate, we'll be happy to review your account for reinstatement."_
+
+I held onto that.
+
+== Two years later — the support maze
+
+In 2024 I decided to try to get the account back.
+The first thing I did was email support-appeals@upwork.com, as the suspension notice had instructed.
+The reply started with:
+
+[source]
+----
+Hello, This email address is not monitored.
+----
+
+Not a great sign.
+
+They pointed me to an appeal form instead.
+I filled it out.
+The response I got back was confusing:
+
+[source]
+----
+We appreciate you reaching out to us with your appeal concerning the suspension of your Upwork account.
+Upon diligent review of your case, we have determined that the account you referenced is either not found within our database or is active without any suspensions noted.
+This discrepancy might be due to inadvertent errors in the account details provided or a misapprehension regarding the account's current standing...
+----
+
+The account wasn't active — I had a clear suspension message every time I tried to log in.
+Something was clearly broken on their end.
+
+By that point the support experience had changed significantly from what it used to be:
+
+* Live chat agents are gone, replaced by a bot that mostly goes in circles
+* Support tickets can only be created by authenticated users, and standard freelancer plan doesn't allow that
+* The appeals email address isn't monitored
+
+I kept filling out the appeal form.
+Same result every time.
+Later, after the account was eventually reinstated, I could see in my profile that every single appeal had been logged — they just hadn't been acted on.
+
+== What finally worked
+
+As a last attempt I wrote to support@upwork.com directly.
+
+I'm not sure whether it was that email or the cumulative weight of all those appeal submissions, but a month or two later I got a message asking me to provide updated personal details and documents.
+
+There was one more twist.
+Years earlier, two of my accounts had been merged into one to comply with Upwork's one-account policy.
+After reviewing the documentation I submitted, they resumed only one of the two merged accounts — the older one, which had no recent work history, ratings, or feedback.
+
+So I spent more time going back and forth with support to get the account with actual history restored.
+Eventually that worked too.
+
+== What I'd tell someone in the same situation
+
+If your account is suspended and you're going in circles with appeals, a few things that might help:
+
+* *Keep submitting the appeal form.* It feels pointless when you're getting identical rejection messages, but the submissions are logged. Volume seems to matter eventually.
+* *Email support@upwork.com directly.* The dedicated appeals address is unmonitored. The main support address still appears to reach real people.
+* *Be patient but persistent.* My case took years of repeated attempts before anything moved.
+* *Don't give up early.* The automated responses make it feel like there's no human on the other side, but there is.
+
+If you're considering checking my profile or even hiring me as a freelancer, my Upwork profile is now active again:
+https://www.upwork.com/freelancers/~01550168d2e6a3f727?mp_source=share[Anatoli Tsikhamirau on Upwork]
+

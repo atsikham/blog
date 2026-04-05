@@ -1,5 +1,5 @@
 {
-  "globalExcludeTagsFromAbout": ["JavaScript"],
+  "globalExcludeTagsFromAbout": ["JavaScript", "Career", "Freelancing", "Upwork", "Personal Story", "Lessons Learned"],
   "posts": [
     {
       "id": "1",
@@ -21,6 +21,15 @@
       ],
       "date": "Apr 2, 2026",
       "tags": ["Kubernetes", "Operator", "Karpenter", "Kyverno", "Platform Engineering", "Multi-tenancy", "Architecture", "AWS"]
+    },
+    {
+      "id": "20",
+      "file": "upwork-account-resumed.adoc",
+      "title": "Success story: how my Upwork account was resumed after 4 years of suspension",
+      "excerpt": "In 2022 Upwork suspended my account. The support email was unmonitored, the appeal form gave nonsensical rejections, and live agents were gone. Here's what eventually worked — and what I'd tell anyone in the same situation.",
+      "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
+      "date": "Apr 5, 2026",
+      "tags": ["Career", "Freelancing", "Upwork", "Personal Story", "Lessons Learned"]
     }
   ]
 }
