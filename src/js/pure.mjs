@@ -98,7 +98,73 @@ export function parseAsciidoc(adoc) {
     return `\x00CODE${idx}\x00`;
   });
 
-  let html = adoc.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  // Parse simple AsciiDoc tables: |=== ... |===
+  // Supports optional table attribute line right above it, e.g. [cols="1,1",options="header"]
+  // Contract: a row is a line starting with `|`, cells are split by `|`.
+  const tables = [];
+  adoc = adoc.replace(
+    /^([\[][^[\]\r\n]+[\]]\r?\n)?\|===\r?\n([\s\S]*?)\r?\n\|===$/gm,
+    (full, attrLineRaw = "", body) => {
+      const attrLine = (attrLineRaw || "").trim();
+      const optionsHeader = /options\s*=\s*"[^"]*header[^"]*"/.test(attrLine);
+
+      const lines = body.split(/\r?\n/);
+      const rows = [];
+      let currentRow = [];
+
+      const pushRow = () => {
+        if (currentRow.length) rows.push(currentRow), (currentRow = []);
+      };
+
+      for (const rawLine of lines) {
+        const line = rawLine.trimRight();
+        if (!line.trim()) {
+          pushRow();
+          continue;
+        }
+        if (line.trim().startsWith("|")) {
+          const cells = line
+            .trim()
+            .split("|")
+            .slice(1)
+            .map((c) => c.trim());
+          // If the line contains multiple cells, it's a whole row; otherwise treat it as a continuation.
+          if (cells.length > 1) {
+            pushRow();
+            rows.push(cells);
+          } else {
+            currentRow.push(cells[0] || "");
+          }
+        } else {
+          // continuation line for the last cell
+          if (!currentRow.length) currentRow.push("");
+          currentRow[currentRow.length - 1] += (currentRow[currentRow.length - 1] ? "\n" : "") + line.trim();
+        }
+      }
+      pushRow();
+
+      if (!rows.length) return full; // fall back: don't transform
+
+      const renderCell = (tag, text) => {
+        // Use HTML-ish tokens (start with <) so the paragraph wrapper doesn't wrap them.
+        // We'll expand them to real <td>/<th> after inline parsing runs.
+        return `<!--TBL${tag.toUpperCase()}${tables.length}-->${text}<!--ENDTBL${tables.length}-->`;
+      };
+
+      const headerRow = optionsHeader ? rows.shift() : null;
+      const thead = headerRow
+        ? `<thead><tr>${headerRow.map((c) => renderCell("th", c)).join("")}</tr></thead>`
+        : "";
+      const tbody = `<tbody>${rows
+        .map((r) => `<tr>${r.map((c) => renderCell("td", c)).join("")}</tr>`)
+        .join("")}</tbody>`;
+
+      const idx = tables.push(`<table>${thead}${tbody}</table>`) - 1;
+      return `\x00TABLE${idx}\x00`;
+    }
+  );
+
+  let html = adoc.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   html = html.replace(/^(NOTE|TIP|IMPORTANT|WARNING|CAUTION): (.+)$/gm,
     (_, type, text) => `<blockquote><strong>${type}:</strong> ${text}</blockquote>`);
@@ -114,6 +180,7 @@ export function parseAsciidoc(adoc) {
     const items = block.trim().split("\n").map((l) => `<li>${l.replace(/^\. /, "")}</li>`).join("");
     return `<ol>${items}</ol>`;
   });
+  // inline emphasis / code
   html = html.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
   html = html.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
   html = html.replace(/``([^`].*?[^`])``/g, "<code>$1</code>");
@@ -122,7 +189,7 @@ export function parseAsciidoc(adoc) {
   html = html.replace(/\+([^+\n]+?)\+/g, "<code>$1</code>");
   html = html.replace(/__(.+?)__/g,      "<em>$1</em>");
   html = html.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
-  html = html.replace(/(https?:\/\/[^\s\[]+)\[([^\]]+)\]/g,
+  html = html.replace(/(https?:\/\/[\s\S]*?)\[([^\]]+)\]/g,
     '<a href="$1" target="_blank" rel="noopener">$2</a>');
   const blockOpen  = /^<(pre|ul|ol|h[1-6]|blockquote|div|table|figure)[\s>]/i;
   const blockClose = /^<\/(pre|ul|ol|h[1-6]|blockquote|div|table|figure)>/i;
@@ -140,6 +207,24 @@ export function parseAsciidoc(adoc) {
   html = html.replace(/<p>\x00CODE(\d+)\x00<\/p>/g, (_, i) => codeBlocks[+i]);
   html = html.replace(/\x00IMG(\d+)\x00/g,  (_, i) => rawImgs[+i]);
   html = html.replace(/<p>\x00IMG(\d+)\x00<\/p>/g, (_, i) => rawImgs[+i]);
+  html = html.replace(/\x00TABLE(\d+)\x00/g, (_, i) => tables[+i]);
+  html = html.replace(/<p>\x00TABLE(\d+)\x00<\/p>/g, (_, i) => tables[+i]);
+  // Expand table cell tokens into real <td>/<th> BEFORE inline parsing.
+  html = html.replace(/<!--TBL(TH|TD)(\d+)-->([\s\S]*?)<!--ENDTBL\2-->/g,
+    (_, tag, _i, inner) => `<${tag.toLowerCase()}>${inner}</${tag.toLowerCase()}>`);
+
+  // Now run inline emphasis / code transformations (works inside table cells too)
+  html = html.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
+  html = html.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
+  html = html.replace(/``([^`].*?[^`])``/g, "<code>$1</code>");
+  html = html.replace(/``([^`]+)``/g,    "<code>$1</code>");
+  html = html.replace(/`([^`\n]+)`/g,    "<code>$1</code>");
+  html = html.replace(/\+([^+\n]+?)\+/g, "<code>$1</code>");
+  html = html.replace(/__(.+?)__/g,      "<em>$1</em>");
+  html = html.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
+  html = html.replace(/(https?:\/\/[\s\S]*?)\[([^\]]+)\]/g,
+    '<a href="$1" target="_blank" rel="noopener">$2</a>');
+
   return html;
 }
 

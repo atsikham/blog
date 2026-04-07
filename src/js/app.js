@@ -75,6 +75,66 @@ function parseAsciidoc(adoc) {
     return `\x00CODE${idx}\x00`;
   });
 
+  // 2b. Extract AsciiDoc tables ([cols=...]\n|===\n...\n|===)
+  // Must run before HTML-escaping so pipe characters survive intact.
+  const tables = [];
+  // Inline-markup helper — applied per cell so markup works inside tables.
+  const inlineFormat = (raw) => {
+    let t = raw
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    t = t.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
+    t = t.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
+    t = t.replace(/``([^`].*?[^`])``/g, "<code>$1</code>");
+    t = t.replace(/``([^`]+)``/g,    "<code>$1</code>");
+    t = t.replace(/`([^`\n]+)`/g,    "<code>$1</code>");
+    t = t.replace(/\+([^+\n]+?)\+/g, "<code>$1</code>");
+    t = t.replace(/__(.+?)__/g,      "<em>$1</em>");
+    t = t.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
+    t = t.replace(/(https?:\/\/[^\s[]+)\[([^\]]+)\]/g,
+      '<a href="$1" target="_blank" rel="noopener">$2</a>');
+    return t;
+  };
+  adoc = adoc.replace(
+    /^(\[[^\]\r\n]+\]\r?\n)?\|===\r?\n([\s\S]*?)\r?\n\|===$/gm,
+    (full, attrLineRaw = "", body) => {
+      const attrLine = (attrLineRaw || "").trim();
+      const isHeader = /options\s*=\s*"[^"]*header[^"]*"/.test(attrLine);
+
+      const lines = body.split(/\r?\n/);
+      const rows = [];
+      let cur = [];
+
+      const flush = () => { if (cur.length) { rows.push(cur); cur = []; } };
+
+      for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (!line.trim()) { flush(); continue; }
+        if (line.trim().startsWith("|")) {
+          const cells = line.trim().split("|").slice(1).map(c => c.trim());
+          if (cells.length > 1) { flush(); rows.push(cells); }
+          else { cur.push(cells[0] || ""); }
+        } else {
+          if (!cur.length) cur.push("");
+          cur[cur.length - 1] += (cur[cur.length - 1] ? " " : "") + line.trim();
+        }
+      }
+      flush();
+
+      if (!rows.length) return full;
+
+      const headerRow = isHeader ? rows.shift() : null;
+      const thead = headerRow
+        ? `<thead><tr>${headerRow.map(c => `<th>${inlineFormat(c)}</th>`).join("")}</tr></thead>`
+        : "";
+      const tbody = `<tbody>${rows
+        .map(r => `<tr>${r.map(c => `<td>${inlineFormat(c)}</td>`).join("")}</tr>`)
+        .join("")}</tbody>`;
+
+      const idx = tables.push(`<table>${thead}${tbody}</table>`) - 1;
+      return `\x00TABLE${idx}\x00`;
+    }
+  );
+
   // 3. Escape HTML entities in the remaining text
   let html = adoc
     .replace(/&/g, "&amp;")
@@ -141,6 +201,10 @@ function parseAsciidoc(adoc) {
   html = html.replace(/<p>\x00CODE(\d+)\x00<\/p>/g, (_, i) => codeBlocks[+i]);
   html = html.replace(/\x00IMG(\d+)\x00/g,  (_, i) => rawImgs[+i]);
   html = html.replace(/<p>\x00IMG(\d+)\x00<\/p>/g, (_, i) => rawImgs[+i]);
+
+  // 11. Restore table placeholders
+  html = html.replace(/\x00TABLE(\d+)\x00/g,   (_, i) => tables[+i]);
+  html = html.replace(/<p>\x00TABLE(\d+)\x00<\/p>/g, (_, i) => tables[+i]);
 
   return html;
 }
