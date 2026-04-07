@@ -1,6 +1,7 @@
 = Running WordPress on AWS ECS Fargate
 
-Back in 2022–2023 I worked on a project where one of the tasks was moving a WordPress site into AWS — properly automated, with no manual steps.
+Back in 2022–2023 I worked on a project where one of the tasks was moving a WordPress site
+into AWS — properly automated, with no manual steps and no secrets in the repo.
 This is a write-up of how I built it, using Terraform from start to finish.
 
 == Architecture
@@ -14,15 +15,16 @@ The stack:
 * *EFS* — persistent storage for WordPress files, mounted by every container
 * *ALB* — HTTPS termination, sits behind CloudFront
 * *CloudFront* — CDN, caching, security headers, geo restriction
-* *AWS WAF* with https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app[AWSManagedRulesWordPressRuleSet] — attached to ALB, blocks common WordPress attack patterns
+* *AWS WAF* with https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app[AWSManagedRulesWordPressRuleSet] —
+  attached to ALB, blocks common WordPress attack patterns
 * *AWS Transfer Family* — SFTP endpoint so editors can upload files directly to EFS
 * *SSM Parameter Store* — secrets store
 * *Route 53* — DNS, managed in a separate AWS account
 
 == Providers and Cross-Account DNS
 
-Route 53 lives in a separate AWS account.
-Two providers are configured — one for the main account and one that assumes a role in the DNS account:
+Route 53 lives in a separate AWS account. Two providers are configured — one for the main
+account and one that assumes a role in the DNS account:
 
 [source,hcl]
 ----
@@ -41,7 +43,8 @@ provider "aws" {
 }
 ----
 
-The `tls-certificate`, `cloudfront`, and `sftp` modules all take `aws.dns` as an explicit provider, so DNS records and ACM validation are created automatically without any manual steps.
+The `tls-certificate`, `cloudfront`, and `sftp` modules all take `aws.dns` as an explicit
+provider, so DNS records and ACM validation are created automatically without any manual steps.
 
 == Module Structure
 
@@ -130,8 +133,8 @@ terraform apply -var-file=vars/dev -var="hosted_zone=example.com"
 
 == Network
 
-The VPC gets public and private subnets across multiple AZs.
-Public subnets route to an Internet Gateway; private subnets route outbound traffic through a NAT Gateway:
+The VPC gets public and private subnets across multiple AZs. Public subnets route to an
+Internet Gateway; private subnets route outbound traffic through a NAT Gateway:
 
 [source,hcl]
 ----
@@ -180,37 +183,44 @@ Four security groups, each scoped to the minimum required traffic:
 ----
 # ALB — accepts 80/443 from anywhere, allows self-traffic for health checks
 resource "aws_security_group" "alb" {
-  ingress { from_port = 80,   to_port = 80,   protocol = "tcp", cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 443,  to_port = 443,  protocol = "tcp", cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 0,    to_port = 0,    protocol = "-1",  self = true }
-  egress { from_port = 0,    to_port = 0,    protocol = "-1,  cidr_blocks = ["0.0.0.0/0"] }
+  ingress { from_port = 80;   to_port = 80;   protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
+  ingress { from_port = 443;  to_port = 443;  protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
+  ingress { from_port = 0;    to_port = 0;    protocol = "-1";  self = true }
+  egress { from_port = 0;    to_port = 0;    protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
 }
 
 # ECS tasks — only accepts traffic from ALB and EFS security groups
 resource "aws_security_group" "ecs" {
   ingress {
-    from_port = 0, to_port = 0, protocol = "tcp",
+    from_port = 0; to_port = 0; protocol = "tcp";
     security_groups = [aws_security_group.alb.id, aws_security_group.efs.id]
   }
-  egress { from_port = 0, to_port = 0, protocol = "-1",  cidr_blocks = ["0.0.0.0/0"] }
+  egress { from_port = 0; to_port = 0; protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
 }
 
-# EFS — only NFS port 2049, self-referencing
+# EFS — only NFS port 2049, from ECS tasks
 resource "aws_security_group" "efs" {
-  ingress { from_port = 2049, to_port = 2049, protocol = "tcp", self = true }
-  egress { from_port = 0,    to_port = 0,    protocol = "-1",  cidr_blocks = ["0.0.0.0/0"] }
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs.id]
+  }
+  egress { from_port = 0;    to_port = 0;    protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
 }
 
 # Aurora — only MySQL port 3306, self-referencing
 resource "aws_security_group" "db" {
-  ingress { from_port = 3306, to_port = 3306, protocol = "tcp", self = true }
-  egress { from_port = 0,    to_port = 0,    protocol = "-1",  cidr_blocks = ["0.0.0.0/0"] }
+  ingress { from_port = 3306; to_port = 3306; protocol = "tcp"; self = true }
+  egress { from_port = 0;    to_port = 0;    protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
 }
 ----
 
 == ALB
 
-The ALB lives in the public subnets. HTTP redirects to HTTPS. The HTTPS listener has no default route — it returns a 500 unless an ECS listener rule matches, which requires the `X-Custom-Header` to be present (injected by CloudFront):
+The ALB lives in the public subnets. HTTP redirects to HTTPS. The HTTPS listener has no
+default route — it returns a 500 unless an ECS listener rule matches, which requires the
+`X-Custom-Header` to be present (injected by CloudFront):
 
 [source,hcl]
 ----
@@ -233,7 +243,7 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type = "redirect"
-    redirect { port = "443", protocol = "HTTPS", status_code = "HTTP_301" }
+    redirect { port = "443"; protocol = "HTTPS"; status_code = "HTTP_301" }
   }
 }
 
@@ -292,7 +302,8 @@ The password is injected into the container via ECS secrets:
 
 == Database: Aurora
 
-Aurora MySQL with serverless scaling, encryption, deletion protection, backups, and RDS logs shipped to CloudWatch:
+Aurora MySQL with serverless scaling, encryption, deletion protection, backups, and RDS
+logs shipped to CloudWatch:
 
 [source,hcl]
 ----
@@ -399,7 +410,9 @@ CloudFront is the public entry point.
 
 Transfer Family connects directly to EFS (`domain = "EFS"`).
 
-Before wrapping up: none of this is “the one true WordPress architecture”. It’s just a set of choices that worked well for this project.
+Before wrapping up: none of this is “the one true WordPress architecture”. It’s just a
+set of choices that worked well for this project.
+
 Here are the things I’d still keep in mind if I were building the same setup again.
 
 == What I'd Keep in Mind Next Time
@@ -410,4 +423,3 @@ Here are the things I’d still keep in mind if I were building the same setup a
 . Serverless database + production traffic = cold start risk.
 . Asymmetric scaling cooldowns work well here.
 . Keep secrets in SSM or Secrets Manager.
-
