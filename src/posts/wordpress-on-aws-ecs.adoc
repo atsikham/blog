@@ -1,7 +1,6 @@
 = Running WordPress on AWS ECS Fargate
 
-Back in 2022–2023 I worked on a project where one of the tasks was moving a WordPress site
-into AWS — properly automated, with no manual steps.
+Back in 2022–2023 I worked on a project where one of the tasks was moving a WordPress site into AWS — properly automated, with no manual steps.
 This is a write-up of how I built it, using Terraform from start to finish.
 
 == Architecture
@@ -22,8 +21,8 @@ The stack:
 
 == Providers and Cross-Account DNS
 
-Route 53 lives in a separate AWS account. Two providers are configured — one for the main
-account and one that assumes a role in the DNS account:
+Route 53 lives in a separate AWS account.
+Two providers are configured — one for the main account and one that assumes a role in the DNS account:
 
 [source,hcl]
 ----
@@ -42,8 +41,7 @@ provider "aws" {
 }
 ----
 
-The `tls-certificate`, `cloudfront`, and `sftp` modules all take `aws.dns` as an explicit
-provider, so DNS records and ACM validation are created automatically without any manual steps.
+The `tls-certificate`, `cloudfront`, and `sftp` modules all take `aws.dns` as an explicit provider, so DNS records and ACM validation are created automatically without any manual steps.
 
 == Module Structure
 
@@ -132,8 +130,8 @@ terraform apply -var-file=vars/dev -var="hosted_zone=example.com"
 
 == Network
 
-The VPC gets public and private subnets across multiple AZs. Public subnets route to an
-Internet Gateway; private subnets route outbound traffic through a NAT Gateway:
+The VPC gets public and private subnets across multiple AZs.
+Public subnets route to an Internet Gateway; private subnets route outbound traffic through a NAT Gateway:
 
 [source,hcl]
 ----
@@ -212,9 +210,7 @@ resource "aws_security_group" "db" {
 
 == ALB
 
-The ALB lives in the public subnets. HTTP redirects to HTTPS. The HTTPS listener has no
-default route — it returns a 500 unless an ECS listener rule matches, which requires the
-`X-Custom-Header` to be present (injected by CloudFront):
+The ALB lives in the public subnets. HTTP redirects to HTTPS. The HTTPS listener has no default route — it returns a 500 unless an ECS listener rule matches, which requires the `X-Custom-Header` to be present (injected by CloudFront):
 
 [source,hcl]
 ----
@@ -296,8 +292,7 @@ The password is injected into the container via ECS secrets:
 
 == Database: Aurora
 
-Aurora MySQL with serverless scaling, encryption, deletion protection, backups, and RDS
-logs shipped to CloudWatch:
+Aurora MySQL with serverless scaling, encryption, deletion protection, backups, and RDS logs shipped to CloudWatch:
 
 [source,hcl]
 ----
@@ -404,9 +399,7 @@ CloudFront is the public entry point.
 
 Transfer Family connects directly to EFS (`domain = "EFS"`).
 
-Before wrapping up: none of this is “the one true WordPress architecture”. It’s just a
-set of choices that worked well for this project.
-
+Before wrapping up: none of this is “the one true WordPress architecture”. It’s just a set of choices that worked well for this project.
 Here are the things I’d still keep in mind if I were building the same setup again.
 
 == What I'd Keep in Mind Next Time

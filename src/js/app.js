@@ -181,19 +181,40 @@ function parseAsciidoc(adoc) {
   html = html.replace(/(https?:\/\/[^\s\[]+)\[([^\]]+)\]/g,
     '<a href="$1" target="_blank" rel="noopener">$2</a>');
 
-  // 9. Paragraphs — block-depth-aware: only wrap bare non-tag lines
-  const blockOpen  = /^<(pre|ul|ol|h[1-6]|blockquote|div|table|figure)[\s>]/i;
-  const blockClose = /^<\/(pre|ul|ol|h[1-6]|blockquote|div|table|figure)>/i;
-  let depth = 0;
-  html = html.split("\n").map(line => {
-    if (blockOpen.test(line.trim()))  depth++;
-    if (blockClose.test(line.trim())) depth = Math.max(0, depth - 1);
-    const trimmed = line.trim();
-    if (depth === 0 && trimmed && !/^</.test(trimmed) && !/^\x00/.test(trimmed)) {
-      return `<p>${trimmed}</p>`;
+  // 9. Paragraphs — group consecutive plain-text lines into <p> blocks.
+  // Lines starting with "<" are already block HTML; lines starting with \x00
+  // are placeholders. Everything else is plain text and may be soft-wrapped
+  // across multiple source lines (no blank line between them = same paragraph).
+  {
+    const inLines  = html.split("\n");
+    const outLines = [];
+    let para = [];
+
+    const flushPara = () => {
+      if (para.length) {
+        outLines.push(`<p>${para.join(" ")}</p>`);
+        para = [];
+      }
+    };
+
+    for (const line of inLines) {
+      const t = line.trim();
+      if (!t) {
+        // blank line → end of paragraph
+        flushPara();
+        outLines.push(line);
+      } else if (/^</.test(t) || /^\x00/.test(t)) {
+        // block HTML or placeholder → flush any open paragraph first
+        flushPara();
+        outLines.push(line);
+      } else {
+        // plain text — accumulate into current paragraph
+        para.push(t);
+      }
     }
-    return line;
-  }).join("\n");
+    flushPara();
+    html = outLines.join("\n");
+  }
   html = html.replace(/<p>\s*<\/p>/g, "");
 
   // 10. Restore code and image placeholders

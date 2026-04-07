@@ -191,17 +191,30 @@ export function parseAsciidoc(adoc) {
   html = html.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
   html = html.replace(/(https?:\/\/[\s\S]*?)\[([^\]]+)\]/g,
     '<a href="$1" target="_blank" rel="noopener">$2</a>');
-  const blockOpen  = /^<(pre|ul|ol|h[1-6]|blockquote|div|table|figure)[\s>]/i;
-  const blockClose = /^<\/(pre|ul|ol|h[1-6]|blockquote|div|table|figure)>/i;
-  let depth = 0;
-  html = html.split("\n").map(line => {
-    if (blockOpen.test(line.trim()))  depth++;
-    if (blockClose.test(line.trim())) depth = Math.max(0, depth - 1);
-    const trimmed = line.trim();
-    if (depth === 0 && trimmed && !/^</.test(trimmed) && !/^\x00/.test(trimmed))
-      return `<p>${trimmed}</p>`;
-    return line;
-  }).join("\n");
+  {
+    const inLines  = html.split("\n");
+    const outLines = [];
+    let para = [];
+
+    const flushPara = () => {
+      if (para.length) { outLines.push(`<p>${para.join(" ")}</p>`); para = []; }
+    };
+
+    for (const line of inLines) {
+      const t = line.trim();
+      if (!t) {
+        flushPara();
+        outLines.push(line);
+      } else if (/^</.test(t) || /^\x00/.test(t)) {
+        flushPara();
+        outLines.push(line);
+      } else {
+        para.push(t);
+      }
+    }
+    flushPara();
+    html = outLines.join("\n");
+  }
   html = html.replace(/<p>\s*<\/p>/g, "");
   html = html.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[+i]);
   html = html.replace(/<p>\x00CODE(\d+)\x00<\/p>/g, (_, i) => codeBlocks[+i]);
