@@ -15,8 +15,7 @@ The stack:
 * *EFS* — persistent storage for WordPress files, mounted by every container
 * *ALB* — HTTPS termination, sits behind CloudFront
 * *CloudFront* — CDN, caching, security headers, geo restriction
-* *AWS WAF* with https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app[AWSManagedRulesWordPressRuleSet] —
-  attached to ALB, blocks common WordPress attack patterns
+* *AWS WAF* with https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app[AWSManagedRulesWordPressRuleSet] — attached to ALB, blocks common WordPress attack patterns
 * *AWS Transfer Family* — SFTP endpoint so editors can upload files directly to EFS
 * *SSM Parameter Store* — secrets store
 * *Route 53* — DNS, managed in a separate AWS account
@@ -410,8 +409,7 @@ CloudFront is the public entry point.
 
 Transfer Family connects directly to EFS (`domain = "EFS"`).
 
-Before wrapping up: none of this is “the one true WordPress architecture”. It’s just a
-set of choices that worked well for this project.
+Before wrapping up: none of this is “the one true WordPress architecture”. It’s just a set of choices that worked well for this project.
 
 Here are the things I’d still keep in mind if I were building the same setup again.
 
