@@ -4,7 +4,6 @@ Back in 2022–2023 I worked on a project where one of the tasks was moving a Wo
 into AWS — properly automated, with no manual steps and no secrets in the repo.
 This is a write-up of how I built it, using Terraform from start to finish.
 
-[#_architecture]
 == Architecture
 
 image::diagrams/wordpress-on-aws-ecs/wordpress-ecs-architecture.svg[Architecture diagram]
@@ -21,7 +20,6 @@ The stack:
 * *SSM Parameter Store* — secrets store
 * *Route 53* — DNS, managed in a separate AWS account
 
-[#_providers_and_cross_account_dns]
 == Providers and Cross-Account DNS
 
 Route 53 lives in a separate AWS account. Two AWS providers are configured in Terraform — one for the main
@@ -49,7 +47,6 @@ provider "aws" {
 The `tls-certificate`, `cloudfront`, and `sftp` modules all take `aws.dns` as an explicit
 provider, so DNS records and ACM validation are created automatically without any manual steps.
 
-[#_module_structure]
 == Module Structure
 
 Every resource belongs to a module — the root configuration only wires modules together:
@@ -89,7 +86,6 @@ locals {
 }
 ----
 
-[#_two_environments_one_codebase]
 == Two Environments, One Codebase
 
 Terraform workspaces handle prod and dev — no code duplication:
@@ -124,7 +120,6 @@ ssm_parameter_db_password = "/Project/WP/Variables/DatabaseMasterPasswordDev"
 domain                    = "dev.example.com"
 ----
 
-[#_network]
 == Network
 
 The VPC gets public and private subnets across multiple AZs. Public subnets route to an
@@ -170,7 +165,6 @@ resource "aws_route_table" "wp_route_table_private" {
 }
 ----
 
-[#_security_groups]
 == Security Groups
 
 Four security groups, each scoped to the minimum required traffic:
@@ -248,7 +242,6 @@ resource "aws_security_group" "db" {
 }
 ----
 
-[#_alb]
 == ALB
 
 The ALB lives in the public subnets. HTTP redirects to HTTPS. The HTTPS listener has no
@@ -303,7 +296,6 @@ resource "aws_lb_listener" "https" {
 }
 ----
 
-[#_secrets_ssm]
 == Secrets: SSM
 
 The database password is created manually in SSM before the first `terraform apply`.
@@ -338,7 +330,6 @@ The password is injected into the container via ECS secrets:
 ]
 ----
 
-[#_database_aurora]
 == Database: Aurora
 
 Aurora MySQL with serverless scaling, encryption, deletion protection, backups, and RDS
@@ -379,7 +370,6 @@ resource "aws_rds_cluster" "db_cluster" {
 }
 ----
 
-[#_efs]
 == EFS: Shared Filesystem for WordPress
 
 Instead of only mounting `wp-content`, the whole WordPress document root lives on EFS.
@@ -420,7 +410,6 @@ resource "aws_efs_backup_policy" "wp" {
 }
 ----
 
-[#_ecs]
 == ECS: Task Definition and Service
 
 EFS is mounted into `/var/www/html` with transit encryption enabled.
@@ -479,7 +468,6 @@ resource "aws_ecs_service" "ecs_service" {
 }
 ----
 
-[#_cloudfront]
 == CloudFront: Caching and Origin Protection
 
 CloudFront is the only public entry point.
@@ -494,14 +482,13 @@ A few other things the CloudFront config handles:
 * *Security headers* — `Strict-Transport-Security`, `X-Content-Type-Options`,
   `X-Frame-Options`, and `Referrer-Policy` are injected via a CloudFront response
   headers policy so WordPress doesn't need to set them itself.
-* *Cache behaviour* — static assets (`/wp-content/uploads/*`, `*.css`, `*.js`) are
-  cached at the edge; the WordPress admin (`/wp-admin/*`) and REST API (`/wp-json/*`)
+* *Cache behaviour* — static assets (`/wp-content/uploads/\*`, `\*.css`, `\*.js`) are
+  cached at the edge; the WordPress admin (`/wp-admin/\*`) and REST API (`/wp-json/\*`)
   bypass the cache entirely with a separate ordered cache behaviour.
 * *WAF attachment* — the WAF web ACL (with `AWSManagedRulesWordPressRuleSet`) uses
   `REGIONAL` scope and is associated with the ALB.
   Traffic that bypasses CloudFront and hits the ALB directly is still inspected by WAF.
 
-[#_sftp_via_aws_transfer_family]
 == SFTP via AWS Transfer Family
 
 Transfer Family connects directly to EFS (`domain = "EFS"`) and exposes an SFTP endpoint
@@ -520,7 +507,6 @@ The Terraform module creates:
 SSH public keys are stored directly on the Transfer Family user — no passwords, no secrets
 in the repo.
 
-[#_what_id_keep_in_mind_next_time]
 == What I'd Keep in Mind Next Time
 
 None of this is "the one true WordPress architecture" — it's a set of choices that worked
