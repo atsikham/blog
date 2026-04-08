@@ -250,6 +250,25 @@ test("parseAsciidoc — double-backtick takes precedence over single-backtick", 
   assert.match(out, /<code>a`b<\/code>/);
 });
 
+test("parseAsciidoc — table", () => {
+  const out = parseAsciidoc(`[cols="1,1,1",options="header"]\n|===\n| | Prod | Dev\n\n| Workspace\n| \`default\`\n| \`dev\`\n\n|===`);
+
+  assert.match(out, /<table>/);
+  assert.match(out, /<thead>/);
+  assert.match(out, /<th>Prod<\/th>/);
+  assert.match(out, /<th>Dev<\/th>/);
+  assert.match(out, /<tbody>/);
+  assert.match(out, /<td><code>default<\/code><\/td>/);
+  assert.match(out, /<td><code>dev<\/code><\/td>/);
+});
+
+test("parseAsciidoc — text after heading is wrapped in paragraphs", () => {
+  const out = parseAsciidoc("== Section\n\nFirst paragraph.\n\nSecond paragraph.");
+  assert.match(out, /<h2>Section<\/h2>/);
+  assert.match(out, /<p>First paragraph\.<\/p>/);
+  assert.match(out, /<p>Second paragraph\.<\/p>/);
+});
+
 // ── content manifest integrity ────────────────────────────────
 
 test("manifest — every referenced post file exists", () => {

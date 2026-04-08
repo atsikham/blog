@@ -4,6 +4,7 @@ Back in 2022–2023 I worked on a project where one of the tasks was moving a Wo
 into AWS — properly automated, with no manual steps and no secrets in the repo.
 This is a write-up of how I built it, using Terraform from start to finish.
 
+[#_architecture]
 == Architecture
 
 image::diagrams/wordpress-on-aws-ecs/wordpress-ecs-architecture.svg[Architecture diagram]
@@ -15,21 +16,24 @@ The stack:
 * *EFS* — persistent storage for WordPress files, mounted by every container
 * *ALB* — HTTPS termination, sits behind CloudFront
 * *CloudFront* — CDN, caching, security headers, geo restriction
-* *AWS WAF* with https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app[AWSManagedRulesWordPressRuleSet] — attached to ALB, blocks common WordPress attack patterns
+* *AWS WAF* with https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-use-case.html#aws-managed-rule-groups-use-case-wordpress-app[AWSManagedRulesWordPressRuleSet] — attached to the ALB, blocks common WordPress attack patterns
 * *AWS Transfer Family* — SFTP endpoint so editors can upload files directly to EFS
 * *SSM Parameter Store* — secrets store
 * *Route 53* — DNS, managed in a separate AWS account
 
+[#_providers_and_cross_account_dns]
 == Providers and Cross-Account DNS
 
-Route 53 lives in a separate AWS account. Two providers are configured — one for the main
-account and one that assumes a role in the DNS account:
+Route 53 lives in a separate AWS account. Two AWS providers are configured in Terraform — one for the main
+account and one that assumes a role in the external account:
 
 [source,hcl]
 ----
 provider "aws" {
   region = var.region
-  default_tags { tags = local.tags }
+  default_tags {
+    tags = local.tags
+  }
 }
 
 provider "aws" {
@@ -45,9 +49,10 @@ provider "aws" {
 The `tls-certificate`, `cloudfront`, and `sftp` modules all take `aws.dns` as an explicit
 provider, so DNS records and ACM validation are created automatically without any manual steps.
 
+[#_module_structure]
 == Module Structure
 
-Everything is a Terraform module — no loose resources at the top level:
+Every resource belongs to a module — the root configuration only wires modules together:
 
 ----
 terraform/
@@ -74,7 +79,7 @@ The root `locals.tf` keeps shared values in one place:
 [source,hcl]
 ----
 locals {
-  posix_user_uid = 82   # www-data in Alpine-based images
+  posix_user_uid  = 82   # www-data in Alpine-based images
   posix_user_gid  = 82
   route53_account = "<dns-account-id>"
   tags = {
@@ -84,6 +89,7 @@ locals {
 }
 ----
 
+[#_two_environments_one_codebase]
 == Two Environments, One Codebase
 
 Terraform workspaces handle prod and dev — no code duplication:
@@ -109,7 +115,7 @@ Terraform workspaces handle prod and dev — no code duplication:
 | `/Project/WP/Variables/DatabaseMasterPasswordDev`
 |===
 
-The dev override file is just three lines:
+The dev `vars/dev.tfvars` override file is just three lines:
 
 [source,hcl]
 ----
@@ -118,18 +124,7 @@ ssm_parameter_db_password = "/Project/WP/Variables/DatabaseMasterPasswordDev"
 domain                    = "dev.example.com"
 ----
 
-[source,shell]
-----
-# Production
-terraform workspace select default
-terraform apply -var="ssm_parameter_db_password=/Project/WP/Variables/DatabaseMasterPassword" \
-                -var="hosted_zone=example.com"
-
-# Development
-terraform workspace select dev
-terraform apply -var-file=vars/dev -var="hosted_zone=example.com"
-----
-
+[#_network]
 == Network
 
 The VPC gets public and private subnets across multiple AZs. Public subnets route to an
@@ -160,6 +155,7 @@ resource "aws_nat_gateway" "wp_nat_gateway" {
   count         = var.az_count
   allocation_id = aws_eip.wp_eip_nat_gateway[count.index].id
   subnet_id     = aws_subnet.wp_public_subnet[count.index].id
+
   depends_on = [aws_internet_gateway.wp_internet_gateway]
 }
 
@@ -174,27 +170,49 @@ resource "aws_route_table" "wp_route_table_private" {
 }
 ----
 
+[#_security_groups]
 == Security Groups
 
 Four security groups, each scoped to the minimum required traffic:
 
 [source,hcl]
 ----
-# ALB — accepts 80/443 from anywhere, allows self-traffic for health checks
+# ALB — accepts 80/443 from anywhere
 resource "aws_security_group" "alb" {
-  ingress { from_port = 80;   to_port = 80;   protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 443;  to_port = 443;  protocol = "tcp"; cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 0;    to_port = 0;    protocol = "-1";  self = true }
-  egress { from_port = 0;    to_port = 0;    protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
-# ECS tasks — only accepts traffic from ALB and EFS security groups
+# ECS tasks — only accepts traffic from ALB
 resource "aws_security_group" "ecs" {
   ingress {
-    from_port = 0; to_port = 0; protocol = "tcp";
-    security_groups = [aws_security_group.alb.id, aws_security_group.efs.id]
+    from_port       = 0
+    to_port         = 0
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
   }
-  egress { from_port = 0; to_port = 0; protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 # EFS — only NFS port 2049, from ECS tasks
@@ -205,16 +223,32 @@ resource "aws_security_group" "efs" {
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs.id]
   }
-  egress { from_port = 0;    to_port = 0;    protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
-# Aurora — only MySQL port 3306, self-referencing
+# Aurora — only MySQL port 3306, from ECS tasks
 resource "aws_security_group" "db" {
-  ingress { from_port = 3306; to_port = 3306; protocol = "tcp"; self = true }
-  egress { from_port = 0;    to_port = 0;    protocol = "-1";  cidr_blocks = ["0.0.0.0/0"] }
+  ingress {
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs.id]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 ----
 
+[#_alb]
 == ALB
 
 The ALB lives in the public subnets. HTTP redirects to HTTPS. The HTTPS listener has no
@@ -242,7 +276,11 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type = "redirect"
-    redirect { port = "443"; protocol = "HTTPS"; status_code = "HTTP_301" }
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 }
 
@@ -265,6 +303,7 @@ resource "aws_lb_listener" "https" {
 }
 ----
 
+[#_secrets_ssm]
 == Secrets: SSM
 
 The database password is created manually in SSM before the first `terraform apply`.
@@ -299,6 +338,7 @@ The password is injected into the container via ECS secrets:
 ]
 ----
 
+[#_database_aurora]
 == Database: Aurora
 
 Aurora MySQL with serverless scaling, encryption, deletion protection, backups, and RDS
@@ -339,9 +379,12 @@ resource "aws_rds_cluster" "db_cluster" {
 }
 ----
 
+[#_efs]
 == EFS: Shared Filesystem for WordPress
 
 Instead of only mounting `wp-content`, the whole WordPress document root lives on EFS.
+An EFS access point scoped to `/var/www/html` enforces the POSIX UID/GID (`82/82`)
+so files written by the containers and files uploaded over SFTP share the same ownership.
 
 [source,hcl]
 ----
@@ -351,18 +394,53 @@ resource "aws_efs_file_system" "wp" {
   encrypted        = true
 }
 
+resource "aws_efs_access_point" "wp" {
+  file_system_id = aws_efs_file_system.wp.id
+
+  root_directory {
+    path = "/var/www/html"
+    creation_info {
+      owner_uid   = local.posix_user_uid
+      owner_gid   = local.posix_user_gid
+      permissions = "755"
+    }
+  }
+
+  posix_user {
+    uid = local.posix_user_uid
+    gid = local.posix_user_gid
+  }
+}
+
 resource "aws_efs_backup_policy" "wp" {
   file_system_id = aws_efs_file_system.wp.id
-  backup_policy { status = "ENABLED" }
+  backup_policy {
+    status = "ENABLED"
+  }
 }
 ----
 
+[#_ecs]
 == ECS: Task Definition and Service
 
-EFS is mounted into `/var/www/html` with transit encryption:
+EFS is mounted into `/var/www/html` with transit encryption enabled.
+The volume references the access point so the container always runs as `www-data`:
 
 [source,json]
 ----
+"volumes": [
+  {
+    "name": "efs-wp-data",
+    "efsVolumeConfiguration": {
+      "fileSystemId": "{efs_id}",
+      "transitEncryption": "ENABLED",
+      "authorizationConfig": {
+        "accessPointId": "{access_point_id}",
+        "iam": "ENABLED"
+      }
+    }
+  }
+],
 "mountPoints": [
   {
     "containerPath": "/var/www/html",
@@ -401,23 +479,81 @@ resource "aws_ecs_service" "ecs_service" {
 }
 ----
 
+[#_cloudfront]
 == CloudFront: Caching and Origin Protection
 
-CloudFront is the public entry point.
+CloudFront is the only public entry point.
+The distribution is configured with a custom origin header (`X-Custom-Header`) whose value
+is a `random_password` generated by Terraform and stored in SSM.
+The ALB HTTPS listener rule forwards traffic only when that header is present and matches,
+so any request that hits the ALB directly gets a 500.
 
+A few other things the CloudFront config handles:
+
+* *Geo restriction* — blocks traffic from regions the site doesn't serve.
+* *Security headers* — `Strict-Transport-Security`, `X-Content-Type-Options`,
+  `X-Frame-Options`, and `Referrer-Policy` are injected via a CloudFront response
+  headers policy so WordPress doesn't need to set them itself.
+* *Cache behaviour* — static assets (`/wp-content/uploads/*`, `*.css`, `*.js`) are
+  cached at the edge; the WordPress admin (`/wp-admin/*`) and REST API (`/wp-json/*`)
+  bypass the cache entirely with a separate ordered cache behaviour.
+* *WAF attachment* — the WAF web ACL (with `AWSManagedRulesWordPressRuleSet`) uses
+  `REGIONAL` scope and is associated with the ALB.
+  Traffic that bypasses CloudFront and hits the ALB directly is still inspected by WAF.
+
+[#_sftp_via_aws_transfer_family]
 == SFTP via AWS Transfer Family
 
-Transfer Family connects directly to EFS (`domain = "EFS"`).
+Transfer Family connects directly to EFS (`domain = "EFS"`) and exposes an SFTP endpoint
+at `sftp.<domain>`. Editors can upload media and themes straight into the WordPress
+document root on EFS without going through the web application.
 
-Before wrapping up: none of this is “the one true WordPress architecture”. It’s just a set of choices that worked well for this project.
+The Terraform module creates:
 
-Here are the things I’d still keep in mind if I were building the same setup again.
+* A Transfer Family server with `endpoint_type = "PUBLIC"` and `protocols = ["SFTP"]`.
+* An IAM role and policy that allow the SFTP user to read/write only their home directory
+  on EFS, using a POSIX profile that matches the `www-data` UID/GID (`82/82`) so files
+  are immediately readable by the WordPress containers.
+* A Route 53 CNAME in the DNS account (via the `aws.dns` provider alias) pointing
+  `sftp.<domain>` at the Transfer Family server endpoint.
 
+SSH public keys are stored directly on the Transfer Family user — no passwords, no secrets
+in the repo.
+
+[#_what_id_keep_in_mind_next_time]
 == What I'd Keep in Mind Next Time
 
-. Mount the whole document root to EFS, not just `wp-content`.
-. The custom header is the only real protection for the ALB.
-. Use a static file for health checks, not a PHP endpoint.
-. Serverless database + production traffic = cold start risk.
-. Asymmetric scaling cooldowns work well here.
-. Keep secrets in SSM or Secrets Manager.
+None of this is "the one true WordPress architecture" — it's a set of choices that worked
+well for this project. Here are the things I'd still keep in mind if building the same
+setup again.
+
+*Mount the whole document root to EFS, not just `wp-content`.*
+WordPress core files live on EFS alongside uploads and plugins.
+This means any container can handle any request without needing a shared code deployment
+step, and plugin updates done through the admin UI survive container restarts instantly.
+The trade-off is that EFS adds latency for PHP file reads — elastic throughput mode
+keeps this manageable.
+
+*The custom header is the only real protection for the ALB.*
+If the secret leaks, traffic can bypass CloudFront. Terraform propagates the new value to both the CloudFront
+origin header config and the ALB listener rule in one apply.
+
+
+*A static file for health checks.*
+The ALB target group health check points at a tiny static file
+rather than the WordPress front page. PHP cold starts on EFS-backed containers can be
+slow enough to fail a health check and trigger unnecessary task replacements.
+
+*Serverless Aurora + production traffic = cold start risk.*
+`auto_pause = false` keeps the cluster warm at all times at the cost of minimum capacity
+charges. If you do allow auto-pause (e.g. on dev), set `seconds_until_auto_pause` high
+enough that a normal overnight gap doesn't trigger a 30-second cold start the next morning.
+
+*Asymmetric autoscaling cooldowns work well here.*
+Scale out quickly (short cooldown) but scale in slowly (long cooldown).
+
+*Keep secrets in SSM Parameter Store or Secrets Manager.*
+The only secret that existed before `terraform apply` was the database master password,
+created manually in SSM. Everything else (CloudFront custom header, connection string)
+is generated and stored by Terraform automatically. This keeps the bootstrap process
+simple and auditable.
