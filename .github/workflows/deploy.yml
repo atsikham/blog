@@ -20,7 +20,9 @@ env:
 # deploy only runs after tests pass — test.yml runs on every push including main
 jobs:
   test:
-    uses: ./.github/workflows/test.yml
+    # Reusable workflow in the same repo.
+    # Use explicit owner/repo so linters can resolve it.
+    uses: atsikham/blog/.github/workflows/test.yml@main
 
   deploy-site:
     name: terraform + sync to S3 + invalidate CloudFront
@@ -29,6 +31,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: install frontend dependencies
+        run: npm install
+
+      - name: generate prerendered SEO pages + sitemap
+        run: npm run gen:seo
 
       - name: configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -88,6 +101,21 @@ jobs:
           aws s3 cp index.html s3://${{ secrets.S3_BUCKET }}/index.html \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html; charset=utf-8"
+
+      - name: upload prerendered post pages
+        run: |
+          aws s3 sync posts/ s3://${{ secrets.S3_BUCKET }}/posts/ \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --delete
+
+      - name: upload robots.txt + sitemap.xml to root
+        run: |
+          aws s3 cp src/robots.txt s3://${{ secrets.S3_BUCKET }}/robots.txt \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/plain; charset=utf-8"
+          aws s3 cp src/sitemap.xml s3://${{ secrets.S3_BUCKET }}/sitemap.xml \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/xml; charset=utf-8"
 
       # manifest + post files — no-cache so browsers always pick up new posts
       - name: upload posts

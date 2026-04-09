@@ -58,6 +58,18 @@ function parseAsciidoc(adoc) {
 
   // 2. Extract source/listing blocks before HTML-escaping so code isn't mangled
   const codeBlocks = [];
+
+  // 2a. Extract inline code spans (backtick and +…+) BEFORE escaping and bold/italic
+  //     so that content like `*.css` or `*.js` is never touched by the * regex.
+  const inlineSpans = [];
+  const stashInline = (raw) => {
+    const idx = inlineSpans.push(raw) - 1;
+    return `\x00SPAN${idx}\x00`;
+  };
+  adoc = adoc.replace(/``([^`].*?[^`])``/g, (_, c) => stashInline(`<code>${c}</code>`));
+  adoc = adoc.replace(/``([^`]+)``/g,        (_, c) => stashInline(`<code>${c}</code>`));
+  adoc = adoc.replace(/`([^`\n]+)`/g,        (_, c) => stashInline(`<code>${c}</code>`));
+  adoc = adoc.replace(/\+([^+\n]+?)\+/g,     (_, c) => stashInline(`<code>${c}</code>`));
   adoc = adoc.replace(
     /\[source(?:,(\w*))?\]\n-{4,}\n([\s\S]*?)\n-{4,}/g,
     (_, lang = "", code) => {
@@ -82,14 +94,18 @@ function parseAsciidoc(adoc) {
   const inlineFormat = (raw) => {
     let t = raw
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // stash inline code spans before bold/italic so `*.css` isn't mangled
+    const cellSpans = [];
+    const stash = (html) => { const i = cellSpans.push(html) - 1; return `\x00CS${i}\x00`; };
+    t = t.replace(/``([^`].*?[^`])``/g, (_, c) => stash(`<code>${c}</code>`));
+    t = t.replace(/``([^`]+)``/g,        (_, c) => stash(`<code>${c}</code>`));
+    t = t.replace(/`([^`\n]+)`/g,        (_, c) => stash(`<code>${c}</code>`));
+    t = t.replace(/\+([^+\n]+?)\+/g,     (_, c) => stash(`<code>${c}</code>`));
     t = t.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
     t = t.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
-    t = t.replace(/``([^`].*?[^`])``/g, "<code>$1</code>");
-    t = t.replace(/``([^`]+)``/g,    "<code>$1</code>");
-    t = t.replace(/`([^`\n]+)`/g,    "<code>$1</code>");
-    t = t.replace(/\+([^+\n]+?)\+/g, "<code>$1</code>");
     t = t.replace(/__(.+?)__/g,      "<em>$1</em>");
     t = t.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
+    t = t.replace(/\x00CS(\d+)\x00/g, (_, i) => cellSpans[+i]);
     t = t.replace(/(https?:\/\/[^\s[]+)\[([^\]]+)\]/g,
       '<a href="$1" target="_blank" rel="noopener">$2</a>');
     return t;
@@ -165,17 +181,15 @@ function parseAsciidoc(adoc) {
     return `<ol>${items}</ol>`;
   });
 
-  // 7. Inline formatting (bold before italic to avoid partial matches)
+  // 7. Inline formatting — bold/italic only; inline code already stashed above.
+  // Order matters: ** before * so **word** isn't partially consumed.
   html = html.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
   html = html.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
-  // Double-backtick inline code must come before single-backtick so that
-  // `` `code with backtick` `` is captured as one span, not mangled.
-  html = html.replace(/``([^`].*?[^`])``/g, "<code>$1</code>");
-  html = html.replace(/``([^`]+)``/g,    "<code>$1</code>");
-  html = html.replace(/`([^`\n]+)`/g,    "<code>$1</code>");
-  html = html.replace(/\+([^+\n]+?)\+/g, "<code>$1</code>");
   html = html.replace(/__(.+?)__/g,      "<em>$1</em>");
   html = html.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
+
+  // Restore inline code spans now that bold/italic is done
+  html = html.replace(/\x00SPAN(\d+)\x00/g, (_, i) => inlineSpans[+i]);
 
   // 8. URLs with label:  https://example.com[label]
   html = html.replace(/(https?:\/\/[^\s\[]+)\[([^\]]+)\]/g,
@@ -643,6 +657,10 @@ let _pendingReplyToId = null;
 function openPost(postId, scrollToComments = false, skipAnimation = false) {
   const post = state.posts.find((p) => p.id === postId);
   if (!post) return;
+
+  // Update SEO metadata for the now-open article
+  applyPostSEO(post);
+
   _pendingReplyToId = null; // reset on every open
   state.openPostId = postId;
 
@@ -704,6 +722,7 @@ function openPost(postId, scrollToComments = false, skipAnimation = false) {
           💬 <span>Show comments</span>
         </button>
       </div>
+      <button class="modal-close-float" id="modalCloseFloat" aria-label="Close post">✕ Close</button>
       <div class="modal-scroll-area">
         <div class="modal-body">${post.content}</div>
         <div class="comments-section comments-hidden" id="commentsSection">
@@ -730,6 +749,7 @@ function openPost(postId, scrollToComments = false, skipAnimation = false) {
 
   // Events inside modal
   document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalCloseFloat").addEventListener("click", closeModal);
   document.querySelector(".modal-like-btn").onclick = () => toggleLike(postId);
   document.querySelector(".scroll-to-comments").addEventListener("click", scrollToCommentsSection);
   document.getElementById("exportPdf").addEventListener("click", () => exportPostAsPDF(post));
@@ -754,6 +774,29 @@ function openPost(postId, scrollToComments = false, skipAnimation = false) {
     submitComment(postId);
   });
   bindCommentInteractions();
+
+  // Scroll-hide topbar on mobile: hide when scrolling down, reveal on scroll up.
+  // The floating close pill stays visible at all times so exit is always reachable.
+  {
+    const scrollArea  = document.querySelector(".modal-scroll-area");
+    const topbar      = document.querySelector(".modal-content-topbar");
+    let lastY   = 0;
+    let ticking = false;
+    scrollArea.addEventListener("scroll", () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = scrollArea.scrollTop;
+        if (y > lastY && y > 60) {
+          topbar.classList.add("topbar-hidden");
+        } else {
+          topbar.classList.remove("topbar-hidden");
+        }
+        lastY   = y;
+        ticking = false;
+      });
+    }, { passive: true });
+  }
 
   const overlay = document.getElementById("modalOverlay");
   if (skipAnimation) {
@@ -1085,9 +1128,15 @@ function closeModal() {
   document.body.style.overflow = "";
   state.openPostId = null;
   _pendingReplyToId = null;
+  // Always restore topbar visibility for the next open
+  const topbar = document.querySelector(".modal-content-topbar");
+  if (topbar) topbar.classList.remove("topbar-hidden");
   // Clear the post hash so the browser back button and a page refresh both
   // land on the plain home page rather than re-opening the modal.
   setHash("home");
+
+  // Restore homepage SEO when closing the article
+  applyHomeSEO();
 }
 
 // ============================================================
@@ -1195,7 +1244,10 @@ async function submitComment(postId) {
 function parseHash() {
   const hash = window.location.hash.replace("#", "").trim();
   if (hash === "about") return { page: "about", postId: null };
-  if (hash.startsWith("post-")) return { page: "home", postId: hash.slice(5) };
+  if (hash.startsWith("post-")) {
+    const raw = hash.slice(5);
+    return { page: "home", postId: decodeURIComponent(raw) };
+  }
   return { page: "home", postId: null };
 }
 
@@ -1209,7 +1261,9 @@ let _settingHash = false;
 const VALID_PAGES = ["home", "about"];
 
 function setHash(page, postId = null) {
-  const next = postId ? `post-${postId}` : (page === "about" ? "about" : "");
+  const next = postId
+    ? `post-${encodeURIComponent(postId)}`
+    : (page === "about" ? "about" : "");
   const current = window.location.hash.replace("#", "");
   if (current !== next) {
     _settingHash = true;
@@ -1382,3 +1436,135 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.documentElement.classList.remove("no-transition");
   }));
 });
+
+// ============================================================
+//  SEO helpers (per-article metadata for Lighthouse)
+// ============================================================
+
+const SITE = {
+  name: "tikho.me",
+  origin: "https://tikho.me",
+  defaultDescription: "tikho.me — a personal blog about technology, engineering, and the ideas worth writing down.",
+  ogImage: "https://tikho.me/src/images/og-image.svg",
+};
+
+function setMeta(nameOrProp, value) {
+  if (!value) return;
+  // Try property first (OG), then name (twitter/description)
+  let el = document.querySelector(`meta[property='${nameOrProp}'][data-dynamic='true']`)
+    || document.querySelector(`meta[name='${nameOrProp}'][data-dynamic='true']`)
+    || document.querySelector(`meta[property='${nameOrProp}']`)
+    || document.querySelector(`meta[name='${nameOrProp}']`);
+  if (!el) {
+    el = document.createElement("meta");
+    if (nameOrProp.startsWith("og:")) el.setAttribute("property", nameOrProp);
+    else el.setAttribute("name", nameOrProp);
+    el.setAttribute("data-dynamic", "true");
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", value);
+}
+
+function setCanonical(url) {
+  if (!url) return;
+  let link = document.querySelector(`link[rel='canonical'][data-dynamic='true']`) || document.querySelector("link[rel='canonical']");
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "canonical");
+    link.setAttribute("data-dynamic", "true");
+    document.head.appendChild(link);
+  }
+  link.setAttribute("href", url);
+}
+
+function parseManifestDateToISO(dateStr) {
+  // manifest format: "Apr 2, 2026" — convert to ISO date
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function postUrl(post) {
+  // Prefer prerendered, crawlable URLs. These pages set location.hash and load the SPA.
+  return `${SITE.origin}/posts/${encodeURIComponent(post.id)}.html`;
+}
+
+function applyHomeSEO() {
+  document.title = SITE.name;
+  setMeta("description", SITE.defaultDescription);
+  setCanonical(SITE.origin + "/");
+
+  setMeta("og:type", "website");
+  setMeta("og:url", SITE.origin + "/");
+  setMeta("og:title", SITE.name);
+  setMeta("og:description", SITE.defaultDescription);
+  setMeta("twitter:title", SITE.name);
+  setMeta("twitter:description", SITE.defaultDescription);
+
+  const jsonLdEl = document.getElementById("jsonld-article");
+  if (jsonLdEl) jsonLdEl.textContent = "";
+}
+
+function applyPostSEO(post) {
+  if (!post) return;
+
+  const title = `${post.title} | ${SITE.name}`;
+  const desc = (post.excerpt || "").trim() || SITE.defaultDescription;
+  const url = postUrl(post);
+
+  document.title = title;
+  setMeta("description", desc);
+  setCanonical(url);
+
+  setMeta("og:type", "article");
+  setMeta("og:url", url);
+  setMeta("og:title", title);
+  setMeta("og:description", desc);
+
+  setMeta("twitter:title", title);
+  setMeta("twitter:description", desc);
+
+  // JSON-LD Article schema
+  const published = parseManifestDateToISO(post.date);
+  const json = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: desc,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
+    url,
+    image: [SITE.ogImage],
+    author: (post.authors || []).map((a) => ({
+      "@type": "Person",
+      name: a.name,
+      ...(a.url ? { url: a.url } : {}),
+    })),
+    ...(published ? { datePublished: published, dateModified: published } : {}),
+    publisher: {
+      "@type": "Organization",
+      name: SITE.name,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE.origin}/src/images/favicon.svg`,
+      },
+    },
+  };
+
+  const jsonLdEl = document.getElementById("jsonld-article");
+  if (jsonLdEl) jsonLdEl.textContent = JSON.stringify(json);
+}
+
+// ============================================================
+//  Hash-based routing (supports deep links for SEO + share)
+// ============================================================
+
+// NOTE: Hash routing is already implemented above in the Page Navigation section.
+// We only keep SEO helpers here and integrate them by calling applyHomeSEO/applyPostSEO
+// from the existing openPost/closeModal and hashchange logic.
+
+// Ensure initial SEO is correct even before any interaction
+applyHomeSEO();
+
+// (Routing is handled by the existing hashchange listener in the Page Navigation section.)

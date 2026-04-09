@@ -239,6 +239,15 @@ test("parseAsciidoc — image:: path is not HTML-escaped", () => {
   assert.match(out, /src="diagrams\/how-this-blog-works\/architecture\.svg"/);
 });
 
+test("parseAsciidoc — asterisks inside backtick spans are not treated as bold", () => {
+  // e.g. (`/wp-content/uploads/*`, `*.css`, `*.js`)
+  const out = parseAsciidoc("(`/wp-content/uploads/*`, `*.css`, `*.js`)");
+  assert.match(out, /<code>\/wp-content\/uploads\/\*<\/code>/);
+  assert.match(out, /<code>\*\.css<\/code>/);
+  assert.match(out, /<code>\*\.js<\/code>/);
+  assert.doesNotMatch(out, /<strong>/);
+});
+
 test("parseAsciidoc — double-backtick inline code with backtick inside", () => {
   const out = parseAsciidoc("a regex like `` /`[\\s\\S]*?`/g `` breaks things");
   assert.match(out, /<code>/);

@@ -7,6 +7,16 @@ No framework, no build step.
 Vanilla HTML/CSS/JS frontend served from S3 + CloudFront, a small Python Lambda on API Gateway for likes, reads and comments, DynamoDB as the backing store.
 Posts are AsciiDoc or Markdown files — the parser runs in the browser.
 
+== SEO (Lighthouse 100 for articles)
+
+Because this is a SPA, hash-only routes (e.g. `/#post-1`) can fail SEO audits in tools/crawlers that don't execute JavaScript.
+To make Lighthouse SEO score 100 reliably per article, the repo generates prerendered HTML entrypoints:
+
+* `posts/{id}.html` — static HTML file with full `<title>`, `<meta>` tags and JSON-LD already present
+* when opened, that page sets `location.hash = post-{id}` and then loads the same SPA
+
+Sitemap entries also use these prerendered URLs.
+
 == how it works
 
 The frontend fetches `src/posts/manifest.json` on load, then pulls each post file on demand.
@@ -24,6 +34,10 @@ The comment tree is rendered client-side from a flat list of objects with an opt
 ----
 personal-website/
 ├── index.html
+├── posts/                 # prerendered per-post entrypoints for SEO
+├── scripts/
+│   ├── generate-sitemap.mjs
+│   └── prerender-posts.mjs
 ├── src/
 │   ├── css/style.css
 │   └── js/
@@ -46,7 +60,7 @@ personal-website/
 │   └── backend.hcl.example
 ├── tests/
 │   ├── unit/                # parser and helper unit tests
-│   └── smoke/               # Playwright smoke test against a local server
+│   └── smoke/               # smoke tests (browser test requires Chromium)
 └── .github/workflows/       # CI runs on every push; deploy runs on main after tests pass
 ----
 
@@ -60,20 +74,33 @@ python3 -m http.server 8080
 Has to be a real HTTP server — the site fetches post files over HTTP.
 `src/js/config.js` leaves `API_URL` empty so the site falls back to localStorage-only mode locally.
 
+== generating SEO artifacts
+
+[source,bash]
+----
+npm run gen:seo
+----
+
+This regenerates:
+
+* `src/sitemap.xml`
+* `posts/{id}.html`
+
+Run it whenever you add/remove posts or change titles/excerpts.
+
 == tests
 
 [source,bash]
 ----
-npm test              # frontend unit tests
-npm run test:smoke    # Playwright smoke test (requires Chromium)
-npm run test:lambda   # Python Lambda tests
+npm test               # frontend unit tests
+npm run test:smoke:seo # dependency-free SEO tag checks
+npm run test:smoke     # Playwright browser smoke test (requires Chromium)
+npm run test:lambda    # Python Lambda tests
 ----
 
-All three run on every push and pull request.
-Deploy only proceeds once they all pass.
-
-The smoke test uses Playwright + Chromium.
+The Playwright smoke test requires Chromium.
 On a fresh machine run `npx playwright install chromium` once before `npm run test:smoke`.
+In restricted environments (corporate MITM / custom TLS) the Chromium download can fail; in that case the smoke test skips automatically.
 
 == adding a post
 
@@ -93,6 +120,13 @@ Drop a `.adoc` or `.md` file in `src/posts/` and add an entry to `src/posts/mani
 ----
 
 `readTime` is calculated automatically from word count — no need to set it.
+
+After adding a post, regenerate the SEO files:
+
+[source,bash]
+----
+npm run gen:seo
+----
 
 == infrastructure
 

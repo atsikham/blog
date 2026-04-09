@@ -22,8 +22,14 @@ jobs:
       - name: install dependencies
         run: npm install
 
+      - name: regenerate prerendered SEO pages + sitemap
+        run: npm run gen:seo
+
       - name: run parser + helper tests
         run: npm test
+
+      - name: run SEO smoke tests
+        run: npm run test:smoke:seo
 
   smoke-tests:
     name: browser smoke test

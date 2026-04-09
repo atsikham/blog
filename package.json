@@ -5,6 +5,10 @@
   "scripts": {
     "test": "node --test tests/unit/*.test.mjs",
     "test:smoke": "node --test tests/smoke/site.smoke.mjs",
+    "test:smoke:seo": "node --test tests/smoke/lighthouse.seo.smoke.mjs",
+    "gen:sitemap": "node scripts/generate-sitemap.mjs",
+    "gen:prerender": "node scripts/prerender-posts.mjs",
+    "gen:seo": "npm run gen:sitemap && npm run gen:prerender",
     "test:lambda": "cd lambda && python3 -m pytest -q"
   },
   "devDependencies": {

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>tikho.me</title>
+  <title>Building a self-service platform on Kubernetes with Operators, Karpenter and Kyverno | tikho.me</title>
 
   <!-- Keep a single canonical + description (dynamic) to avoid Lighthouse duplicate tag findings -->
-  <meta name="description" content="tikho.me — a personal blog about technology, engineering, and the ideas worth writing down." data-dynamic="true" />
-  <link rel="canonical" href="https://tikho.me" data-dynamic="true" />
+  <meta name="description" content="A concept for building a self-service internal developer platform on Kubernetes — using a custom operator to manage projects and environments, Karpenter for on-demand node provisioning, and Kyverno to transparently handle pod scheduling without touching developer workloads." />
+  <link rel="canonical" href="https://tikho.me/posts/2.html" />
 
   <!-- Favicon — SVG scales perfectly on all displays -->
   <link rel="icon" type="image/svg+xml" href="src/images/favicon.svg" />
@@ -17,21 +17,21 @@
   <link rel="apple-touch-icon" href="src/images/favicon.svg" />
 
   <!-- Open Graph / Social (dynamic; updated per-article) -->
-  <meta property="og:type" content="website" />
+  <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tikho.me" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:url" content="https://tikho.me" data-dynamic="true" />
-  <meta property="og:title" content="tikho.me" data-dynamic="true" />
-  <meta property="og:description" content="A personal blog about platform engineering, cloud infrastructure, and the ideas worth writing down." data-dynamic="true" />
+  <meta property="og:url" content="https://tikho.me/posts/2.html" />
+  <meta property="og:title" content="Building a self-service platform on Kubernetes with Operators, Karpenter and Kyverno | tikho.me" />
+  <meta property="og:description" content="A concept for building a self-service internal developer platform on Kubernetes — using a custom operator to manage projects and environments, Karpenter for on-demand node provisioning, and Kyverno to transparently handle pod scheduling without touching developer workloads." />
   <meta property="og:image" content="https://tikho.me/src/images/og-image.svg" />
 
   <!-- Twitter / X card (dynamic; updated per-article) -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="tikho.me" data-dynamic="true" />
-  <meta name="twitter:description" content="A personal blog about platform engineering, cloud infrastructure, and the ideas worth writing down." data-dynamic="true" />
+  <meta name="twitter:title" content="Building a self-service platform on Kubernetes with Operators, Karpenter and Kyverno | tikho.me" />
+  <meta name="twitter:description" content="A concept for building a self-service internal developer platform on Kubernetes — using a custom operator to manage projects and environments, Karpenter for on-demand node provisioning, and Kyverno to transparently handle pod scheduling without touching developer workloads." />
   <meta name="twitter:image" content="https://tikho.me/src/images/og-image.svg" />
 
-  <script type="application/ld+json" id="jsonld-article"></script>
+  <script type="application/ld+json" id="jsonld-article">{&quot;@context&quot;:&quot;https://schema.org&quot;,&quot;@type&quot;:&quot;Article&quot;,&quot;headline&quot;:&quot;Building a self-service platform on Kubernetes with Operators, Karpenter and Kyverno&quot;,&quot;description&quot;:&quot;A concept for building a self-service internal developer platform on Kubernetes — using a custom operator to manage projects and environments, Karpenter for on-demand node provisioning, and Kyverno to transparently handle pod scheduling without touching developer workloads.&quot;,&quot;mainEntityOfPage&quot;:{&quot;@type&quot;:&quot;WebPage&quot;,&quot;@id&quot;:&quot;https://tikho.me/posts/2.html&quot;},&quot;url&quot;:&quot;https://tikho.me/posts/2.html&quot;,&quot;image&quot;:[&quot;https://tikho.me/src/images/og-image.svg&quot;],&quot;author&quot;:[{&quot;@type&quot;:&quot;Person&quot;,&quot;name&quot;:&quot;Anatoli Tsikhamirau&quot;,&quot;url&quot;:&quot;https://github.com/atsikham&quot;},{&quot;@type&quot;:&quot;Person&quot;,&quot;name&quot;:&quot;Paweł Kołakowski&quot;,&quot;url&quot;:&quot;https://www.linkedin.com/in/pkolakow/&quot;}],&quot;datePublished&quot;:&quot;2026-04-01T22:00:00.000Z&quot;,&quot;dateModified&quot;:&quot;2026-04-01T22:00:00.000Z&quot;,&quot;publisher&quot;:{&quot;@type&quot;:&quot;Organization&quot;,&quot;name&quot;:&quot;tikho.me&quot;,&quot;logo&quot;:{&quot;@type&quot;:&quot;ImageObject&quot;,&quot;url&quot;:&quot;https://tikho.me/src/images/favicon.svg&quot;}}}</script>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -54,6 +54,7 @@
   </script>
 </head>
 <body>
+<script>location.hash = 'post-2';</script>
 <canvas id="bgCanvas" aria-hidden="true"></canvas>
 
 <!-- ===== Header ===== -->

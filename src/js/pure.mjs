@@ -145,24 +145,45 @@ export function parseAsciidoc(adoc) {
 
       if (!rows.length) return full; // fall back: don't transform
 
-      const renderCell = (tag, text) => {
-        // Use HTML-ish tokens (start with <) so the paragraph wrapper doesn't wrap them.
-        // We'll expand them to real <td>/<th> after inline parsing runs.
-        return `<!--TBL${tag.toUpperCase()}${tables.length}-->${text}<!--ENDTBL${tables.length}-->`;
+      // Format inline markup inside a single cell safely:
+      // stash backtick spans first so * inside them isn't bold.
+      const inlineFormatCell = (raw) => {
+        let t = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const cs = [];
+        const s = (h) => { const i = cs.push(h) - 1; return `\x00CS${i}\x00`; };
+        t = t.replace(/``([^`].*?[^`])``/g, (_, c) => s(`<code>${c}</code>`));
+        t = t.replace(/``([^`]+)``/g,        (_, c) => s(`<code>${c}</code>`));
+        t = t.replace(/`([^`\n]+)`/g,        (_, c) => s(`<code>${c}</code>`));
+        t = t.replace(/\+([^+\n]+?)\+/g,     (_, c) => s(`<code>${c}</code>`));
+        t = t.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+        t = t.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
+        t = t.replace(/__(.+?)__/g, "<em>$1</em>");
+        t = t.replace(/_([^_\n]+?)_/g, "<em>$1</em>");
+        t = t.replace(/\x00CS(\d+)\x00/g, (_, i) => cs[+i]);
+        return t;
       };
 
       const headerRow = optionsHeader ? rows.shift() : null;
       const thead = headerRow
-        ? `<thead><tr>${headerRow.map((c) => renderCell("th", c)).join("")}</tr></thead>`
+        ? `<thead><tr>${headerRow.map((c) => `<th>${inlineFormatCell(c)}</th>`).join("")}</tr></thead>`
         : "";
       const tbody = `<tbody>${rows
-        .map((r) => `<tr>${r.map((c) => renderCell("td", c)).join("")}</tr>`)
+        .map((r) => `<tr>${r.map((c) => `<td>${inlineFormatCell(c)}</td>`).join("")}</tr>`)
         .join("")}</tbody>`;
 
       const idx = tables.push(`<table>${thead}${tbody}</table>`) - 1;
       return `\x00TABLE${idx}\x00`;
     }
   );
+
+  // Stash inline code spans BEFORE HTML-escaping and bold/italic so that
+  // content like `*.css` is never matched by the * regex.
+  const inlineSpans = [];
+  const stashSpan = (h) => { const i = inlineSpans.push(h) - 1; return `\x00SPAN${i}\x00`; };
+  adoc = adoc.replace(/``([^`].*?[^`])``/g, (_, c) => stashSpan(`<code>${c}</code>`));
+  adoc = adoc.replace(/``([^`]+)``/g,        (_, c) => stashSpan(`<code>${c}</code>`));
+  adoc = adoc.replace(/`([^`\n]+)`/g,        (_, c) => stashSpan(`<code>${c}</code>`));
+  adoc = adoc.replace(/\+([^+\n]+?)\+/g,     (_, c) => stashSpan(`<code>${c}</code>`));
 
   let html = adoc.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -180,15 +201,13 @@ export function parseAsciidoc(adoc) {
     const items = block.trim().split("\n").map((l) => `<li>${l.replace(/^\. /, "")}</li>`).join("");
     return `<ol>${items}</ol>`;
   });
-  // inline emphasis / code
+  // inline bold/italic — inline code already stashed above
   html = html.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
   html = html.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
-  html = html.replace(/``([^`].*?[^`])``/g, "<code>$1</code>");
-  html = html.replace(/``([^`]+)``/g,    "<code>$1</code>");
-  html = html.replace(/`([^`\n]+)`/g,    "<code>$1</code>");
-  html = html.replace(/\+([^+\n]+?)\+/g, "<code>$1</code>");
   html = html.replace(/__(.+?)__/g,      "<em>$1</em>");
   html = html.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
+  // restore inline code spans
+  html = html.replace(/\x00SPAN(\d+)\x00/g, (_, i) => inlineSpans[+i]);
   html = html.replace(/(https?:\/\/[\s\S]*?)\[([^\]]+)\]/g,
     '<a href="$1" target="_blank" rel="noopener">$2</a>');
   {
@@ -222,21 +241,7 @@ export function parseAsciidoc(adoc) {
   html = html.replace(/<p>\x00IMG(\d+)\x00<\/p>/g, (_, i) => rawImgs[+i]);
   html = html.replace(/\x00TABLE(\d+)\x00/g, (_, i) => tables[+i]);
   html = html.replace(/<p>\x00TABLE(\d+)\x00<\/p>/g, (_, i) => tables[+i]);
-  // Expand table cell tokens into real <td>/<th> BEFORE inline parsing.
-  html = html.replace(/<!--TBL(TH|TD)(\d+)-->([\s\S]*?)<!--ENDTBL\2-->/g,
-    (_, tag, _i, inner) => `<${tag.toLowerCase()}>${inner}</${tag.toLowerCase()}>`);
 
-  // Now run inline emphasis / code transformations (works inside table cells too)
-  html = html.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
-  html = html.replace(/\*([^*\n]+?)\*/g, "<strong>$1</strong>");
-  html = html.replace(/``([^`].*?[^`])``/g, "<code>$1</code>");
-  html = html.replace(/``([^`]+)``/g,    "<code>$1</code>");
-  html = html.replace(/`([^`\n]+)`/g,    "<code>$1</code>");
-  html = html.replace(/\+([^+\n]+?)\+/g, "<code>$1</code>");
-  html = html.replace(/__(.+?)__/g,      "<em>$1</em>");
-  html = html.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
-  html = html.replace(/(https?:\/\/[\s\S]*?)\[([^\]]+)\]/g,
-    '<a href="$1" target="_blank" rel="noopener">$2</a>');
 
   return html;
 }

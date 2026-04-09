@@ -637,6 +637,18 @@ nav {
   border-bottom: 1px solid var(--border);
   background: var(--surface2);
   flex-shrink: 0;
+  /* transition used on mobile for scroll-hide */
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+.modal-content-topbar.topbar-hidden {
+  transform: translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Floating close pill — shown on mobile only (hidden here, enabled in @media) */
+.modal-close-float {
+  display: none;
 }
 
 .topbar-spacer { flex: 1; }
@@ -936,7 +948,35 @@ footer { border-top: 1px solid var(--border); padding: 24px 20px; text-align: ce
   .modal-sidebar-actions { flex-direction: row; margin-top: 0; padding-top: 0; border-top: none; }
   .modal-sidebar-actions .action-btn { width: auto; }
   .modal-meta { flex-direction: row; padding-top: 0; border-top: none; }
-  .modal-content-topbar { padding: 8px 18px; }
+  .modal-content-topbar {
+    padding: 8px 18px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  /* Always-visible floating close button so the reader can exit even when the
+     topbar has slid out of view */
+  .modal-close-float {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: fixed;
+    bottom: 20px;
+    right: 18px;
+    z-index: 1100;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 11px 20px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.28);
+    transition: background var(--transition), transform 0.12s ease;
+  }
+  .modal-close-float:active { transform: scale(0.94); }
   .modal-body { padding: 20px 18px; }
   .comments-section { padding: 20px 18px 28px; }
 }

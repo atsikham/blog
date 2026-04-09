@@ -8,6 +8,9 @@ That became `tikho.me`: a static frontend on S3 + CloudFront, posts stored as pl
 This post explains how it is put together, which problems came up, and what changed as the site slowly became a real project instead of a weekend experiment.
 The full source is on https://github.com/atsikham/blog[GitHub].
 
+NOTE: This post (and every post on tikho.me) now has a prerendered, crawlable URL for SEO and sharing: https://tikho.me/posts/1.html
+It loads the same SPA and opens the post automatically, but Lighthouse and search engines can see the full `<title>`, `<meta>` tags and JSON-LD without executing JavaScript.
+
 == Architecture
 
 The site is a single-page app served from S3 + CloudFront.

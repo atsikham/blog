@@ -482,8 +482,8 @@ A few other things the CloudFront config handles:
 * *Security headers* — `Strict-Transport-Security`, `X-Content-Type-Options`,
   `X-Frame-Options`, and `Referrer-Policy` are injected via a CloudFront response
   headers policy so WordPress doesn't need to set them itself.
-* *Cache behaviour* — static assets (`/wp-content/uploads/\*`, `\*.css`, `\*.js`) are
-  cached at the edge; the WordPress admin (`/wp-admin/\*`) and REST API (`/wp-json/\*`)
+* *Cache behaviour* — static assets (`/wp-content/uploads/*`, `*.css`, `*.js`) are
+  cached at the edge; the WordPress admin (`/wp-admin/*`) and REST API (`/wp-json/*`)
   bypass the cache entirely with a separate ordered cache behaviour.
 * *WAF attachment* — the WAF web ACL (with `AWSManagedRulesWordPressRuleSet`) uses
   `REGIONAL` scope and is associated with the ALB.
