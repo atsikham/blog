@@ -580,8 +580,22 @@ nav {
 .modal-body h3 { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 1.1rem;  font-weight: 600; margin: 26px 0 8px; }
 .modal-body h4 { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 0.95rem; font-weight: 600; margin: 20px 0 6px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .modal-body p  { margin-bottom: 18px; }
-.modal-body ul, .modal-body ol { margin: 0 0 18px 24px; }
-.modal-body li { margin-bottom: 7px; line-height: 1.75; }
+.modal-body ul, .modal-body ol {
+  margin: 0 0 18px 0;
+  padding-left: 1.5em;  /* space for the bullet/number */
+}
+.modal-body ul { list-style-type: disc; }
+.modal-body ol { list-style-type: decimal; }
+.modal-body li {
+  margin-bottom: 10px;
+  line-height: 1.8;
+  /* list-style-position: outside (default) means wrapped lines indent under
+     the first character of text, not under the bullet — no extra tricks needed */
+}
+.modal-body li::marker { color: var(--primary); }
+/* nested lists */
+.modal-body li > ul,
+.modal-body li > ol { margin-top: 8px; margin-bottom: 4px; }
 .modal-body strong { font-weight: 650; color: var(--text); }
 .modal-body em     { font-style: italic; color: var(--text-muted); }
 .modal-body a      { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
@@ -637,12 +651,16 @@ nav {
   border-bottom: 1px solid var(--border);
   background: var(--surface2);
   flex-shrink: 0;
-  /* transition used on mobile for scroll-hide */
-  transition: transform 0.22s ease, opacity 0.22s ease;
+  overflow: hidden;
+  max-height: 60px;
+  transition: max-height 0.28s ease, opacity 0.28s ease, padding 0.28s ease;
 }
 .modal-content-topbar.topbar-hidden {
-  transform: translateY(-110%);
+  max-height: 0;
   opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
   pointer-events: none;
 }
 
@@ -650,6 +668,7 @@ nav {
 .modal-close-float {
   display: none;
 }
+
 
 .topbar-spacer { flex: 1; }
 
@@ -948,20 +967,28 @@ footer { border-top: 1px solid var(--border); padding: 24px 20px; text-align: ce
   .modal-sidebar-actions { flex-direction: row; margin-top: 0; padding-top: 0; border-top: none; }
   .modal-sidebar-actions .action-btn { width: auto; }
   .modal-meta { flex-direction: row; padding-top: 0; border-top: none; }
-  .modal-content-topbar {
-    padding: 8px 18px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+  /* Sidebar collapses its height so it doesn't leave a blank gap */
+  .modal-sidebar {
+    overflow: hidden;
+    max-height: 400px;
+    transition: max-height 0.28s ease, opacity 0.28s ease, padding 0.28s ease;
   }
-  /* Always-visible floating close button so the reader can exit even when the
-     topbar has slid out of view */
+  .modal-sidebar.topbar-hidden {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom-width: 0;
+    pointer-events: none;
+  }
+  /* Floating close button — only visible when the topbar has scrolled away */
   .modal-close-float {
     display: flex;
     align-items: center;
     gap: 6px;
     position: fixed;
-    bottom: 20px;
+    /* Stay above Safari's bottom address bar using safe-area inset */
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     right: 18px;
     z-index: 1100;
     background: var(--primary);
@@ -974,7 +1001,17 @@ footer { border-top: 1px solid var(--border); padding: 24px 20px; text-align: ce
     font-family: inherit;
     cursor: pointer;
     box-shadow: 0 4px 18px rgba(0,0,0,0.28);
-    transition: background var(--transition), transform 0.12s ease;
+    transition: background var(--transition), transform 0.12s ease, opacity 0.2s ease, visibility 0.2s ease;
+    /* Hidden by default — topbar is visible so its ✕ Close button is enough */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  /* Show only when the topbar has slid away (adjacent sibling) */
+  .modal-content-topbar.topbar-hidden + .modal-close-float {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
   .modal-close-float:active { transform: scale(0.94); }
   .modal-body { padding: 20px 18px; }

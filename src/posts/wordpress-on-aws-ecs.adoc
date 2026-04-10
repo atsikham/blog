@@ -245,8 +245,7 @@ resource "aws_security_group" "db" {
 == ALB
 
 The ALB lives in the public subnets. HTTP redirects to HTTPS. The HTTPS listener has no
-default route — it returns a 500 unless an ECS listener rule matches, which requires the
-`X-Custom-Header` to be present (injected by CloudFront):
+default route — it returns a 500 unless an ECS listener rule matches, which requires the `X-Custom-Header` to be present (injected by CloudFront):
 
 [source,hcl]
 ----

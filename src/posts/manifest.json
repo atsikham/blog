@@ -8,7 +8,7 @@
       "excerpt": "How this blog works: a static frontend on S3 + CloudFront, a small Python Lambda for likes and comments, and the fixes that made refreshes, routing and regression checks feel solid.",
       "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
       "date": "Mar 31, 2026",
-      "tags": ["AWS", "S3", "CloudFront", "Lambda", "DynamoDB", "Python", "Serverless", "Terraform", "Architecture"]
+      "tags": ["AWS", "S3", "CloudFront", "Lambda", "DynamoDB", "Python", "Serverless", "Terraform", "Architecture", "JavaScript", "API Gateway", "GitHub Actions", "CI/CD", "Testing"]
     },
     {
       "id": "2",
@@ -20,7 +20,7 @@
         { "name": "Paweł Kołakowski", "initials": "PK", "url": "https://www.linkedin.com/in/pkolakow/" }
       ],
       "date": "Apr 2, 2026",
-      "tags": ["Kubernetes", "Operator", "Karpenter", "Kyverno", "Platform Engineering", "Multi-tenancy", "Architecture", "AWS"]
+      "tags": ["Kubernetes", "Operator", "Karpenter", "Kyverno", "Platform Engineering", "Multi-tenancy", "Architecture", "AWS", "CRD", "Go", "IDP", "Policy", "Namespaces"]
     },
     {
       "id": "3",
@@ -38,7 +38,7 @@
       "excerpt": "A practical Terraform setup for running WordPress on ECS Fargate with CloudFront, ALB, WAF, Aurora, EFS, SSM secrets, and SFTP uploads via AWS Transfer Family.",
       "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
       "date": "Apr 6, 2026",
-      "tags": ["AWS", "Terraform", "WordPress", "ECS", "Fargate", "CloudFront", "ALB", "WAF", "Aurora", "EFS", "SSM", "Route 53", "SFTP", "Architecture"]
+      "tags": ["AWS", "Terraform", "WordPress", "ECS", "Fargate", "CloudFront", "ALB", "WAF", "Aurora", "EFS", "SSM", "Route 53", "SFTP", "Architecture", "RDS", "Transfer Family"]
     }
   ]
 }

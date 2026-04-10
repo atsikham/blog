@@ -43,7 +43,6 @@ personal-website/
 │   └── js/
 │       ├── app.js           # UI logic
 │       ├── storage.js       # localStorage + API abstraction
-│       ├── comments.mjs     # comment-tree helpers
 │       ├── bg.js            # canvas background animation
 │       ├── pure.mjs         # pure helpers (also used by unit tests)
 │       ├── config.js        # local dev fallback (API_URL left empty)
@@ -121,7 +120,7 @@ Drop a `.adoc` or `.md` file in `src/posts/` and add an entry to `src/posts/mani
 
 `readTime` is calculated automatically from word count — no need to set it.
 
-After adding a post, regenerate the SEO files:
+To regenerate the SEO files after adding a post, run:
 
 [source,bash]
 ----
