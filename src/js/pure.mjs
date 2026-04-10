@@ -113,7 +113,7 @@ export function parseAsciidoc(adoc) {
       let currentRow = [];
 
       const pushRow = () => {
-        if (currentRow.length) rows.push(currentRow), (currentRow = []);
+        if (currentRow.length) { rows.push(currentRow); currentRow = []; }
       };
 
       for (const rawLine of lines) {
@@ -179,11 +179,12 @@ export function parseAsciidoc(adoc) {
   // Stash inline code spans BEFORE HTML-escaping and bold/italic so that
   // content like `*.css` is never matched by the * regex.
   const inlineSpans = [];
+  const escCode = (s) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const stashSpan = (h) => { const i = inlineSpans.push(h) - 1; return `\x00SPAN${i}\x00`; };
-  adoc = adoc.replace(/``([^`].*?[^`])``/g, (_, c) => stashSpan(`<code>${c}</code>`));
-  adoc = adoc.replace(/``([^`]+)``/g,        (_, c) => stashSpan(`<code>${c}</code>`));
-  adoc = adoc.replace(/`([^`\n]+)`/g,        (_, c) => stashSpan(`<code>${c}</code>`));
-  adoc = adoc.replace(/\+([^+\n]+?)\+/g,     (_, c) => stashSpan(`<code>${c}</code>`));
+  adoc = adoc.replace(/``([^`].*?[^`])``/g, (_, c) => stashSpan(`<code>${escCode(c)}</code>`));
+  adoc = adoc.replace(/``([^`]+)``/g,        (_, c) => stashSpan(`<code>${escCode(c)}</code>`));
+  adoc = adoc.replace(/`([^`\n]+)`/g,        (_, c) => stashSpan(`<code>${escCode(c)}</code>`));
+  adoc = adoc.replace(/\+([^+\n]+?)\+/g,     (_, c) => stashSpan(`<code>${escCode(c)}</code>`));
 
   let html = adoc.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -193,13 +194,28 @@ export function parseAsciidoc(adoc) {
   html = html.replace(/^=== (.+)$/gm,   "<h3>$1</h3>");
   html = html.replace(/^== (.+)$/gm,    "<h2>$1</h2>");
   html = html.replace(/^= (.+)$/gm,     "<h1>$1</h1>");
-  html = html.replace(/((?:^\* .+\n?)+)/gm, (block) => {
-    const items = block.trim().split("\n").map((l) => `<li>${l.replace(/^\* /, "")}</li>`).join("");
-    return `<ul>${items}</ul>`;
+  // Lists — capture "* item" lines plus soft-wrapped continuation lines.
+  html = html.replace(/((?:^\* .+\n?(?:^(?![*\n=\[]).+\n?)*)+)/gm, (block) => {
+    const items = [];
+    let cur = null;
+    for (const line of block.split("\n")) {
+      if (!line.trim()) continue;
+      if (/^\* /.test(line)) { if (cur !== null) items.push(cur); cur = line.replace(/^\* /, ""); }
+      else { cur = (cur !== null ? cur + " " : "") + line.trim(); }
+    }
+    if (cur !== null) items.push(cur);
+    return `<ul>${items.map(t => `<li>${t}</li>`).join("")}</ul>`;
   });
-  html = html.replace(/((?:^\. .+\n?)+)/gm, (block) => {
-    const items = block.trim().split("\n").map((l) => `<li>${l.replace(/^\. /, "")}</li>`).join("");
-    return `<ol>${items}</ol>`;
+  html = html.replace(/((?:^\. .+\n?(?:^(?![.\n=\[]).+\n?)*)+)/gm, (block) => {
+    const items = [];
+    let cur = null;
+    for (const line of block.split("\n")) {
+      if (!line.trim()) continue;
+      if (/^\. /.test(line)) { if (cur !== null) items.push(cur); cur = line.replace(/^\. /, ""); }
+      else { cur = (cur !== null ? cur + " " : "") + line.trim(); }
+    }
+    if (cur !== null) items.push(cur);
+    return `<ol>${items.map(t => `<li>${t}</li>`).join("")}</ol>`;
   });
   // inline bold/italic — inline code already stashed above
   html = html.replace(/\*\*(.+?)\*\*/g,  "<strong>$1</strong>");
@@ -208,7 +224,7 @@ export function parseAsciidoc(adoc) {
   html = html.replace(/_([^_\n]+?)_/g,   "<em>$1</em>");
   // restore inline code spans
   html = html.replace(/\x00SPAN(\d+)\x00/g, (_, i) => inlineSpans[+i]);
-  html = html.replace(/(https?:\/\/[\s\S]*?)\[([^\]]+)\]/g,
+  html = html.replace(/(https?:\/\/[^\s\[]+)\[([^\]]+)\]/g,
     '<a href="$1" target="_blank" rel="noopener">$2</a>');
   {
     const inLines  = html.split("\n");

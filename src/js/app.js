@@ -58,18 +58,6 @@ function parseAsciidoc(adoc) {
 
   // 2. Extract source/listing blocks before HTML-escaping so code isn't mangled
   const codeBlocks = [];
-
-  // 2a. Extract inline code spans (backtick and +…+) BEFORE escaping and bold/italic
-  //     so that content like `*.css` or `*.js` is never touched by the * regex.
-  const inlineSpans = [];
-  const stashInline = (raw) => {
-    const idx = inlineSpans.push(raw) - 1;
-    return `\x00SPAN${idx}\x00`;
-  };
-  adoc = adoc.replace(/``([^`].*?[^`])``/g, (_, c) => stashInline(`<code>${c}</code>`));
-  adoc = adoc.replace(/``([^`]+)``/g,        (_, c) => stashInline(`<code>${c}</code>`));
-  adoc = adoc.replace(/`([^`\n]+)`/g,        (_, c) => stashInline(`<code>${c}</code>`));
-  adoc = adoc.replace(/\+([^+\n]+?)\+/g,     (_, c) => stashInline(`<code>${c}</code>`));
   adoc = adoc.replace(
     /\[source(?:,(\w*))?\]\n-{4,}\n([\s\S]*?)\n-{4,}/g,
     (_, lang = "", code) => {
@@ -151,6 +139,17 @@ function parseAsciidoc(adoc) {
     }
   );
 
+  // 2c. Stash inline code spans AFTER table extraction — tables handle their own
+  //     inline formatting via inlineFormat per-cell. Stashing before would leave
+  //     \x00SPAN..\x00 placeholders raw inside cells (inlineFormat only restores \x00CS..\x00).
+  const inlineSpans = [];
+  const esc = (s) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const stashInline = (raw) => { const idx = inlineSpans.push(raw) - 1; return `\x00SPAN${idx}\x00`; };
+  adoc = adoc.replace(/``([^`].*?[^`])``/g, (_, c) => stashInline(`<code>${esc(c)}</code>`));
+  adoc = adoc.replace(/``([^`]+)``/g,        (_, c) => stashInline(`<code>${esc(c)}</code>`));
+  adoc = adoc.replace(/`([^`\n]+)`/g,        (_, c) => stashInline(`<code>${esc(c)}</code>`));
+  adoc = adoc.replace(/\+([^+\n]+?)\+/g,     (_, c) => stashInline(`<code>${esc(c)}</code>`));
+
   // 3. Escape HTML entities in the remaining text
   let html = adoc
     .replace(/&/g, "&amp;")
@@ -169,16 +168,37 @@ function parseAsciidoc(adoc) {
   html = html.replace(/^== (.+)$/gm,    "<h2>$1</h2>");
   html = html.replace(/^= (.+)$/gm,     "<h1>$1</h1>");
 
-  // 6. Lists — require "* text" (asterisk+space) to avoid matching inline *bold*
-  html = html.replace(/((?:^\* .+\n?)+)/gm, (block) => {
-    const items = block.trim().split("\n")
-      .map((l) => `<li>${l.replace(/^\* /, "")}</li>`).join("");
-    return `<ul>${items}</ul>`;
+  // 6. Lists — capture "* item" lines plus any soft-wrapped continuation lines
+  //    (non-blank lines that don't start a new bullet / block element).
+  html = html.replace(/((?:^\* .+\n?(?:^(?![*\n=\[]).+\n?)*)+)/gm, (block) => {
+    const items = [];
+    let cur = null;
+    for (const line of block.split("\n")) {
+      if (!line.trim()) continue;
+      if (/^\* /.test(line)) {
+        if (cur !== null) items.push(cur);
+        cur = line.replace(/^\* /, "");
+      } else {
+        cur = (cur !== null ? cur + " " : "") + line.trim();
+      }
+    }
+    if (cur !== null) items.push(cur);
+    return `<ul>${items.map(t => `<li>${t}</li>`).join("")}</ul>`;
   });
-  html = html.replace(/((?:^\. .+\n?)+)/gm, (block) => {
-    const items = block.trim().split("\n")
-      .map((l) => `<li>${l.replace(/^\. /, "")}</li>`).join("");
-    return `<ol>${items}</ol>`;
+  html = html.replace(/((?:^\. .+\n?(?:^(?![.\n=\[]).+\n?)*)+)/gm, (block) => {
+    const items = [];
+    let cur = null;
+    for (const line of block.split("\n")) {
+      if (!line.trim()) continue;
+      if (/^\. /.test(line)) {
+        if (cur !== null) items.push(cur);
+        cur = line.replace(/^\. /, "");
+      } else {
+        cur = (cur !== null ? cur + " " : "") + line.trim();
+      }
+    }
+    if (cur !== null) items.push(cur);
+    return `<ol>${items.map(t => `<li>${t}</li>`).join("")}</ol>`;
   });
 
   // 7. Inline formatting — bold/italic only; inline code already stashed above.
@@ -272,7 +292,7 @@ async function loadPosts() {
   // Store global tag exclusions in state so renderAboutTags can read them.
   state.globalExcludeTagsFromAbout = new Set(globalExclude);
 
-  const posts = await Promise.all(
+  return Promise.all(
     postMetas.map(async (meta) => {
       const res  = await fetch(`src/posts/${meta.file}`);
       const text = await res.text();
@@ -291,7 +311,6 @@ async function loadPosts() {
       return { ...meta, readTime, content };
     })
   );
-  return posts;
 }
 
 // ============================================================
@@ -316,11 +335,6 @@ const state = {
   // from the About skills cloud across all posts globally.
   globalExcludeTagsFromAbout: new Set(),
 };
-
-function getLikeCount(postId) { return Storage.getLikes(postId); }
-function isLiked(postId)      { return Storage.isLiked(postId); }
-function getComments(postId)  { return Storage.getComments(postId); }
-function getReadCount(postId) { return Storage.getReads(postId); }
 
 // formats large counts the way everyone expects: 999, 1k, 1.2k, 10k, 1m …
 function fmtCount(n) {
@@ -612,10 +626,10 @@ function renderPagination(currentPage, totalPages) {
 }
 
 function renderPostCard(post) {
-  const likeCount    = getLikeCount(post.id);
-  const liked        = isLiked(post.id);
-  const commentCount = getComments(post.id).length;
-  const readCount    = getReadCount(post.id);
+  const likeCount    = Storage.getLikes(post.id);
+  const liked        = Storage.isLiked(post.id);
+  const commentCount = Storage.getComments(post.id).length;
+  const readCount    = Storage.getReads(post.id);
 
   return `
     <article class="post-card" data-id="${post.id}" tabindex="0" role="button" aria-label="Read ${post.title}">
@@ -668,9 +682,9 @@ function openPost(postId, scrollToComments = false, skipAnimation = false) {
   // On a restore we skip that write to avoid a second hash-driven open cycle.
   if (!skipAnimation) setHash("home", postId);
 
-  const likeCount  = getLikeCount(postId);
-  const liked      = isLiked(postId);
-  const comments   = getComments(postId);
+  const likeCount  = Storage.getLikes(postId);
+  const liked      = Storage.isLiked(postId);
+  const comments   = Storage.getComments(postId);
 
   // Count this view — at most once per session (see Storage.recordRead).
   Storage.recordRead(postId);
@@ -775,28 +789,6 @@ function openPost(postId, scrollToComments = false, skipAnimation = false) {
   });
   bindCommentInteractions();
 
-  // Scroll-hide topbar on mobile: hide when scrolling down, reveal on scroll up.
-  // The floating close pill stays visible at all times so exit is always reachable.
-  {
-    const scrollArea  = document.querySelector(".modal-scroll-area");
-    const topbar      = document.querySelector(".modal-content-topbar");
-    let lastY   = 0;
-    let ticking = false;
-    scrollArea.addEventListener("scroll", () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = scrollArea.scrollTop;
-        if (y > lastY && y > 60) {
-          topbar.classList.add("topbar-hidden");
-        } else {
-          topbar.classList.remove("topbar-hidden");
-        }
-        lastY   = y;
-        ticking = false;
-      });
-    }, { passive: true });
-  }
 
   const overlay = document.getElementById("modalOverlay");
   if (skipAnimation) {
@@ -1128,14 +1120,7 @@ function closeModal() {
   document.body.style.overflow = "";
   state.openPostId = null;
   _pendingReplyToId = null;
-  // Always restore topbar visibility for the next open
-  const topbar = document.querySelector(".modal-content-topbar");
-  if (topbar) topbar.classList.remove("topbar-hidden");
-  // Clear the post hash so the browser back button and a page refresh both
-  // land on the plain home page rather than re-opening the modal.
   setHash("home");
-
-  // Restore homepage SEO when closing the article
   applyHomeSEO();
 }
 
@@ -1184,9 +1169,8 @@ async function submitComment(postId) {
   const replyToId = _pendingReplyToId || null;
   _pendingReplyToId = null;
 
-  let saved;
   try {
-    saved = await Storage.addComment(postId, name, text, replyToId);
+    await Storage.addComment(postId, name, text, replyToId);
   } catch (e) {
     if (e?.message === "RATE_LIMITED") {
       showToast("You're posting too fast — please wait a moment.", "⏳");
@@ -1195,7 +1179,7 @@ async function submitComment(postId) {
     }
     return;
   }
-  void saved;  showToast(replyToId ? "Reply posted!" : "Comment posted!", "💬");
+  showToast(replyToId ? "Reply posted!" : "Comment posted!", "💬");
 
   const replyBanner = document.getElementById("replyBanner");
   if (replyBanner) replyBanner.remove();
@@ -1418,7 +1402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderPostGrid();
   renderAboutTags();
 
-  // Restore page and open post from URL hash — suppress all transitions so
+  // Restore page and open post on initial load — suppress all transitions so
   // the initial render appears instantly rather than animating in from nothing.
   // The no-transition class is removed after two animation frames (see openPost).
   document.documentElement.classList.add("no-transition");
@@ -1556,15 +1540,5 @@ function applyPostSEO(post) {
   if (jsonLdEl) jsonLdEl.textContent = JSON.stringify(json);
 }
 
-// ============================================================
-//  Hash-based routing (supports deep links for SEO + share)
-// ============================================================
-
-// NOTE: Hash routing is already implemented above in the Page Navigation section.
-// We only keep SEO helpers here and integrate them by calling applyHomeSEO/applyPostSEO
-// from the existing openPost/closeModal and hashchange logic.
-
-// Ensure initial SEO is correct even before any interaction
+// Ensure correct SEO metadata on initial load (before any interaction)
 applyHomeSEO();
-
-// (Routing is handled by the existing hashchange listener in the Page Navigation section.)

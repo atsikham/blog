@@ -91,9 +91,15 @@ for (const post of posts) {
 
   let html = baseIndex;
 
-  // point to the hash route so the SPA opens the correct post
-  html = html.replace(/<body>/i, `<body>\n<script>location.hash = 'post-${encodeURIComponent(post.id)}';</script>`);
-
+  // Redirect to the root SPA with the post hash.
+  // Running the SPA from /posts/1.html breaks all relative asset paths
+  // (src/css, src/js, src/posts/… would resolve to /posts/src/… = 404).
+  // location.replace fires before any asset loads and keeps history clean
+  // (the back button won't loop back to /posts/1.html).
+  const postHash = `post-${encodeURIComponent(post.id)}`;
+  html = html.replace(/<head>/i,
+    `<head>\n<script>location.replace('/#${postHash}');</script>`
+  );
   html = setTitle(html, title);
   html = setMetaTag(html, { attr: 'name', key: 'description', content: desc });
   html = setLinkCanonical(html, url);

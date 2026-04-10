@@ -221,6 +221,15 @@ test("parseAsciidoc — unordered list", () => {
   assert.match(out, /<li>one<\/li>/);
 });
 
+test("parseAsciidoc — multi-line list item continuation is joined", () => {
+  // A line without a bullet following a bullet line is a soft-wrap continuation
+  const out = parseAsciidoc("* first item that is long\n  and continues here\n* second item");
+  assert.match(out, /<li>first item that is long and continues here<\/li>/);
+  assert.match(out, /<li>second item<\/li>/);
+  // continuation must NOT become a separate <p>
+  assert.doesNotMatch(out, /<p>and continues here<\/p>/);
+});
+
 test("parseAsciidoc — url with label", () => {
   const out = parseAsciidoc("https://github.com[GitHub]");
   assert.match(out, /<a href="https:\/\/github\.com".*>GitHub<\/a>/);
@@ -269,6 +278,8 @@ test("parseAsciidoc — table", () => {
   assert.match(out, /<tbody>/);
   assert.match(out, /<td><code>default<\/code><\/td>/);
   assert.match(out, /<td><code>dev<\/code><\/td>/);
+  // regression: SPAN placeholder must never leak into rendered output
+  assert.doesNotMatch(out, /SPAN/);
 });
 
 test("parseAsciidoc — text after heading is wrapped in paragraphs", () => {
@@ -276,6 +287,46 @@ test("parseAsciidoc — text after heading is wrapped in paragraphs", () => {
   assert.match(out, /<h2>Section<\/h2>/);
   assert.match(out, /<p>First paragraph\.<\/p>/);
   assert.match(out, /<p>Second paragraph\.<\/p>/);
+});
+
+test("parseAsciidoc — HTML tags inside backticks are escaped not parsed as elements", () => {
+  // Regression: `<title>` in post content was inserted raw into innerHTML,
+  // causing the browser to treat it as a real <title> element and break the modal.
+  const out = parseAsciidoc("The `<title>` and `<meta>` tags are important.");
+  assert.match(out, /<code>&lt;title&gt;<\/code>/);
+  assert.match(out, /<code>&lt;meta&gt;<\/code>/);
+  // must NOT contain raw unescaped element tags inside code
+  assert.doesNotMatch(out, /<code><title>/);
+  assert.doesNotMatch(out, /<code><meta>/);
+});
+
+test("parseAsciidoc — URL with label does not consume across newlines", () => {
+  // Regression: greedy [\s\S]*? URL regex was eating content across paragraphs.
+  const out = parseAsciidoc(
+    "See https://example.com[Example] for details.\n\nSecond paragraph is intact."
+  );
+  assert.match(out, /<a href="https:\/\/example\.com"[^>]*>Example<\/a>/);
+  assert.match(out, /Second paragraph is intact/);
+});
+
+test("parseAsciidoc — angle-bracket placeholder in backticks renders as code not eaten as tag", () => {
+  // Regression: sftp.<domain> without backticks was showing as "sftp." with <domain> eaten as HTML tag.
+  // With backticks the content is stashed before escaping, so angle brackets are safely escaped.
+  const out = parseAsciidoc("Connect to `sftp.<domain>` to upload files.");
+  assert.match(out, /<code>sftp\.&lt;domain&gt;<\/code>/);
+  assert.doesNotMatch(out, /sftp\.\s*to upload/); // <domain> must not be silently swallowed
+});
+
+test("parseAsciidoc — all post files parse without unreplaced placeholders", () => {
+  for (const post of manifest.posts) {
+    if (!post.file.endsWith(".adoc") && !post.file.endsWith(".asciidoc")) continue;
+    const src = fs.readFileSync(path.join(postsDir, post.file), "utf8");
+    const out = parseAsciidoc(src);
+    assert.ok(
+      !out.includes("\x00"),
+      `unreplaced placeholder in ${post.file}: ${out.slice(out.indexOf("\x00") - 20, out.indexOf("\x00") + 20)}`
+    );
+  }
 });
 
 // ── content manifest integrity ────────────────────────────────

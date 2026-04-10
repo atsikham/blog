@@ -47,6 +47,9 @@ jobs:
       - name: install dependencies
         run: npm install
 
+      - name: generate prerendered SEO pages + sitemap
+        run: npm run gen:seo
+
       - name: install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
