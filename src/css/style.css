@@ -948,30 +948,70 @@ footer { border-top: 1px solid var(--border); padding: 24px 20px; text-align: ce
 
   #modalContent { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
 
+  /* ── Sidebar: compact single row with only action buttons ── */
   .modal-sidebar {
     border-right: none;
     border-bottom: 1px solid var(--border);
     flex-direction: row;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    padding: 14px 18px;
+    gap: 6px;
+    padding: 6px 12px;
     overflow-y: visible;
+    flex-wrap: nowrap;
   }
-  .modal-sidebar-top { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; flex: 1; }
-  .modal-title { font-size: 1rem; }
-  .modal-sidebar-actions { flex-direction: row; margin-top: 0; padding-top: 0; border-top: none; }
-  .modal-sidebar-actions .action-btn { width: auto; }
-  .modal-meta { flex-direction: row; padding-top: 0; border-top: none; }
 
-  /* Extra bottom padding so the last comment / submit button clears the
-     browser's home indicator and bottom bar */
+  /* Hide space-heavy elements — tags take multiple lines, title & meta
+     are visible in the article itself */
+  .modal-tags,
+  .modal-title,
+  .modal-meta,
+  .modal-sidebar-top { display: none; }
+
+  /* Actions row fills the sidebar */
+  .modal-sidebar-actions {
+    flex-direction: row;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    gap: 4px;
+    flex: 1;
+  }
+  .modal-sidebar-actions .action-btn {
+    width: auto;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+  }
+  /* Hide text labels on action buttons — keep emoji and like count */
+  .modal-sidebar-actions .like-label { display: none; }
+  .modal-sidebar-actions .comment-btn span,
+  .modal-sidebar-actions .pdf-btn span { display: none; }
+
+  /* ── Topbar: icon-only, minimal height ── */
+  .modal-content-topbar {
+    padding: 5px 10px;
+    gap: 4px;
+  }
+  /* Hide text labels on topbar buttons */
+  .modal-content-topbar .topbar-btn span,
+  .modal-content-topbar .modal-close span { display: none; }
+  .modal-content-topbar .topbar-btn {
+    padding: 5px 8px;
+    font-size: 1rem; /* emoji size */
+    border: none;
+    background: transparent;
+  }
+  .modal-content-topbar .modal-close {
+    padding: 5px 8px;
+    font-size: 0.9rem;
+  }
+
+  /* Extra bottom padding so comments/submit button clears home indicator */
   .modal-scroll-area {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   }
 
-  .modal-body { padding: 20px 18px; }
-  .comments-section { padding: 20px 18px 28px; }
+  .modal-body { padding: 18px 16px; }
+  .comments-section { padding: 16px 16px 28px; }
 }
 
 /* ===== Pagination ===== */
