@@ -176,7 +176,7 @@ aws ec2 describe-volumes \
 `available` means the volume exists but isn't attached to anything.
 On a cluster that has been running for a while it's common to find dozens — volumes from deleted `StatefulSets`, abandoned debug PVCs, or `Retain`-policy volumes that were never followed up on.
 
-NOTE : Be careful - If the environment is suspended, volumes may be shown as available as nothing consumes them.
+NOTE: Be careful - If the environment is suspended, volumes may be shown as available as nothing consumes them.
 
 === Decommission idle tooling and unused AWS resources
 
