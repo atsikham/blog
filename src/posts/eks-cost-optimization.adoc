@@ -277,17 +277,17 @@ To use Graviton, just add the appropriate families to the `NodePool` alongside e
 
 [source,yaml]
 ----
-      requirements:
-        - key: karpenter.k8s.aws/instance-family
-          operator: In
-          values:
-            - m7g    # Graviton3
-            - c7g    # add r7g, x8g etc. as needed
-        - key: kubernetes.io/arch
-          operator: In
-          values:
-            - arm64
-            - amd64   # keep amd64 as a fallback
+requirements:
+  - key: karpenter.k8s.aws/instance-family
+    operator: In
+    values:
+      - m7g    # Graviton3
+      - c7g    # add r7g, x8g etc. as needed
+  - key: kubernetes.io/arch
+    operator: In
+    values:
+      - arm64
+      - amd64   # keep amd64 as a fallback
 ----
 
 If a workload can't run on ARM64 — a third-party binary with no ARM build, for example — put it in a separate `NodePool` with `amd64` only and use a `nodeSelector` to send it there.
