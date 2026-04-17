@@ -377,11 +377,11 @@ test("manifest — globalAuthors resolution: initials and url derived at runtime
 
   // Spot-check initials calculation
   assert.equal(resolveAuthor("Anatoli Tsikhamirau").initials, "AT");
-  assert.equal(resolveAuthor("Paweł Kołakowski").initials, "PK");
+  assert.equal(resolveAuthor("Pawel Kolakowski").initials, "PK");
 
   // URL resolved from globalAuthors for both string and object form
   assert.equal(resolveAuthor("Anatoli Tsikhamirau").url, "https://github.com/atsikham");
-  assert.equal(resolveAuthor({ name: "Paweł Kołakowski" }).url, "https://www.linkedin.com/in/pkolakow/");
+  assert.equal(resolveAuthor({ name: "Pawel Kolakowski" }).url, "https://www.linkedin.com/in/pkolakow/");
 });
 
 test("posts — every AsciiDoc image reference resolves to a real file", () => {
