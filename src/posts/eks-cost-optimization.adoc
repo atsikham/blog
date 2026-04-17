@@ -104,21 +104,17 @@ spec:
 A few things worth keeping in mind:
 
 * Label namespaces with `env-type=non-prod` so the CronJob only touches development environments.
-* For Kubernetes custom resources, you can include this flag in the resource's spec.
-Production namespaces should never be in scope.
-* If workloads run more than one replica, store the original count before scaling down so the upscale restores the right number.
-* Tools like https://codeberg.org/hjacobs/kube-downscaler[Kube-downscaler] handle this automatically via an annotation.
-* Once pods are gone, Karpenter will consolidate and terminate the now-empty nodes after
-`consolidateAfter` — so you stop paying for EC2 capacity overnight too.
+* For Kubernetes custom resources, you can include this flag in the resource's spec. Production namespaces should never be in scope.
+* If workloads run more than one replica, store the original count before scaling down so the upscale restores the right number. Tools like https://codeberg.org/hjacobs/kube-downscaler[Kube-downscaler] handle this automatically via an annotation.
+* Once pods are gone, Karpenter will consolidate and terminate the now-empty nodes after `consolidateAfter` — so you stop paying for EC2 capacity overnight too.
 * For teams spread across time zones, per-namespace schedule annotations give more flexibility than a single global schedule.
 
-A 12-hour working day across five weekdays leaves 108 out of 168 weekly hours where nothing is running — roughly *64% of non-production runtime*.
+A 12-hour working day across five weekdays leaves 108 out of 168 weekly hours where nothing is running — roughly *64% of non-production runtime* — and that maps directly to 64% less compute spend on those environments.
 
 === Clean up detached EBS volumes and retained PersistentVolumes
 
 In Kubernetes, a `PersistentVolume` is bound to a `PersistentVolumeClaim`, which a pod uses for storage.
-When a `Deployment` or `StatefulSet` is scaled down to zero or deleted — or a whole namespace is torn down — what happens to the underlying EBS volume depends entirely on the
-`reclaimPolicy` configured on the `StorageClass` or the volume itself.
+When a `Deployment` or `StatefulSet` is scaled down to zero or deleted — or a whole namespace is torn down — what happens to the underlying EBS volume depends entirely on the `reclaimPolicy` configured on the `StorageClass` or the volume itself.
 
 There are https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming[three policies] at the moment: Delete, Retain and Recycle (deprecated).
 For ephemeral workloads, use `reclaimPolicy: Delete` so cleanup is automatic:
@@ -178,10 +174,12 @@ aws ec2 describe-volumes \
 ----
 
 `available` means the volume exists but isn't attached to anything.
-On a cluster that has been running for a while it's common to find dozens — volumes from deleted
-`StatefulSets`, abandoned debug PVCs, or `Retain`-policy volumes that were never followed up on.
+On a cluster that has been running for a while it's common to find dozens — volumes from deleted `StatefulSets`, abandoned debug PVCs, or `Retain`-policy volumes that were never followed up on.
 
-NOTE: Be careful - If the environment is suspended, volumes may be shown as available as nothing consumes them.
+[NOTE]
+====
+Be careful: If the environment is suspended, volumes may be shown as available as nothing consumes them.
+====
 
 === Decommission idle tooling and unused AWS resources
 
@@ -190,8 +188,7 @@ It's worth doing a periodic review of what's actually still needed and removing 
 Common offenders:
 
 * **Over-provisioner** — a deployment that pre-creates empty pods to keep spare capacity ready. Once Karpenter is tuned, this is usually no longer needed and just keeps extra nodes running permanently.
-* **Stale ECR images** — ECR charges per GB stored.
-Set up lifecycle policies to expire untagged images and old tagged versions beyond a sensible retention count.
+* **Stale ECR images** — ECR charges per GB stored. Set up lifecycle policies to expire untagged images and old tagged versions beyond a sensible retention count.
 * **Idle RDS instances** — databases created for a feature branch or load test that never got removed. A stopped RDS instance still has storage costs; a deleted one doesn't.
 * **Unassociated Elastic IPs** — EIPs not attached to anything cost ~$3.65/month each and quietly build up after environments are torn down.
 * **Old VPCs from deleted environments** — a NAT gateway attached to a VPC with no live traffic still bills by the hour.
@@ -453,8 +450,7 @@ resource "aws_efs_file_system" "this" {
 }
 ----
 
-If you're currently on Provisioned because burst credits kept running out, check the
-`MeteredIOBytes` CloudWatch metric first — if average throughput is well below your provisioned limit, switching to Elastic will save money right away.
+If you're currently on Provisioned because burst credits kept running out, check the `MeteredIOBytes` CloudWatch metric first — if average throughput is well below your provisioned limit, switching to Elastic will save money right away.
 
 == Use shared organisational services
 
@@ -557,7 +553,8 @@ At scale, it's better to automate this as a periodic check — a Lambda that sca
 
 === Archive to S3 for long-term compliance
 
-If compliance requires keeping logs beyond 90 days, but you don't need to query them in CloudWatch, export to S3 and apply a lifecycle policy to move them to Glacier. S3 Glacier storage costs roughly 8–10× less than CloudWatch for the same data.
+If compliance requires keeping logs beyond 90 days, but you don't need to query them in CloudWatch, export to S3 and apply a lifecycle policy to move them to Glacier.
+S3 Glacier storage costs roughly 8–10× less than CloudWatch for the same data.
 
 Short retention in CloudWatch for live debugging, long-term archive in Glacier for compliance — that combination is almost always cheaper than keeping everything in CloudWatch forever.
 
@@ -566,14 +563,17 @@ Short retention in CloudWatch for live debugging, long-term archive in Glacier f
 All of the above requires knowing where money is actually going.
 AWS has a few built-in tools that surface waste and flag right-sizing opportunities.
 
-**Cost Explorer** is the first place to look. It breaks down spend by service, region, account, or tag. For EKS the most useful views are daily cost by service (to spot spikes), EC2 usage type (to see the On-Demand vs Spot split), and the Savings Plans recommendations tab.
+**Cost Explorer** is the first place to look.
+It breaks down spend by service, region, account, or tag.
+For EKS the most useful views are daily cost by service (to spot spikes), EC2 usage type (to see the On-Demand vs Spot split), and the Savings Plans recommendations tab.
 Tagging is what makes it genuinely useful — apply consistent tags to all cluster resources and activate them as cost allocation tags in the Billing console so you can filter to a specific team or workload.
 
 **Trusted Advisor** runs automated checks across your account and flags idle load balancers, unassociated Elastic IPs, underused EBS volumes, and On-Demand usage that a Savings Plan could cover.
 Cost checks are available on all support plans; the full set requires Business or Enterprise.
 
 **Compute Optimizer** looks at CloudWatch usage data and suggests better-fitting instance types for EC2 and EBS.
-On EKS it's most useful for fixed managed node groups — system add-ons like CoreDNS and kube-proxy that Karpenter doesn't manage. It's free to enable but needs at least 14 days of data before making suggestions, so turn it on early.
+On EKS it's most useful for fixed managed node groups — system add-ons like CoreDNS and kube-proxy that Karpenter doesn't manage.
+It's free to enable but needs at least 14 days of data before making suggestions, so turn it on early.
 
 **Cost Anomaly Detection** uses machine learning to alert you when spend jumps unexpectedly — a misconfigured `NodePool` launching large On-Demand instances, an environment left running over a long weekend, or a sudden spike in S3 access costs.
 Set up a monitor per service category with a dollar threshold so you hear about it before it becomes a big number.
@@ -617,7 +617,7 @@ They can be rolled out one at a time, roughly in order of impact:
 | Eliminate cross-AZ transfer on internal traffic
 
 | 8
-| Endpoints
+| ECR / STS / SSM Interface Endpoints (PrivateLink)
 | Eliminate NAT fee on image pulls and token exchange
 
 | 9
@@ -634,7 +634,7 @@ They can be rolled out one at a time, roughly in order of impact:
 
 | 12
 | Scale down non-prod workloads outside business hours
-| ~60% reduction in non-prod compute hours
+| ~64% reduction in non-prod compute hours
 
 | 13
 | Detached EBS volume cleanup + `reclaimPolicy: Delete`
@@ -653,7 +653,7 @@ They can be rolled out one at a time, roughly in order of impact:
 | Eliminate idle runner nodes
 
 | 17
-| Metrics reduction
+| Metrics cardinality reduction
 | Reduce observability platform per-series cost
 
 | 18
