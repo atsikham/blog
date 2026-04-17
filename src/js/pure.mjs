@@ -171,7 +171,7 @@ export function parseAsciidoc(adoc) {
         .map((r) => `<tr>${r.map((c) => `<td>${inlineFormatCell(c)}</td>`).join("")}</tr>`)
         .join("")}</tbody>`;
 
-      const idx = tables.push(`<table>${thead}${tbody}</table>`) - 1;
+      const idx = tables.push(`<div class="table-wrap"><table>${thead}${tbody}</table></div>`) - 1;
       return `\x00TABLE${idx}\x00`;
     }
   );
@@ -240,7 +240,7 @@ export function parseAsciidoc(adoc) {
       if (!t) {
         flushPara();
         outLines.push(line);
-      } else if (/^</.test(t) || /^\x00/.test(t)) {
+      } else if (/^</.test(t) && !/^<(strong|em|code|a)[\s>]/i.test(t) || /^\x00/.test(t)) {
         flushPara();
         outLines.push(line);
       } else {

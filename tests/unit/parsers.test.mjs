@@ -271,6 +271,7 @@ test("parseAsciidoc — double-backtick takes precedence over single-backtick", 
 test("parseAsciidoc — table", () => {
   const out = parseAsciidoc(`[cols="1,1,1",options="header"]\n|===\n| | Prod | Dev\n\n| Workspace\n| \`default\`\n| \`dev\`\n\n|===`);
 
+  assert.match(out, /<div class="table-wrap">/);
   assert.match(out, /<table>/);
   assert.match(out, /<thead>/);
   assert.match(out, /<th>Prod<\/th>/);
@@ -287,6 +288,19 @@ test("parseAsciidoc — text after heading is wrapped in paragraphs", () => {
   assert.match(out, /<h2>Section<\/h2>/);
   assert.match(out, /<p>First paragraph\.<\/p>/);
   assert.match(out, /<p>Second paragraph\.<\/p>/);
+});
+
+test("parseAsciidoc — bold-prefixed paragraph joins with continuation lines", () => {
+  // Regression: *Bold title.* followed by continuation text on the next source
+  // line was rendered as two separate <p> tags, causing a premature line break.
+  const src = "*Serverless Aurora + cold start risk.*\n`auto_pause = false` keeps the cluster warm.\nIf you allow auto-pause, set the timeout high.";
+  const out = parseAsciidoc(src);
+  // Must be a single paragraph, not two
+  const pCount = (out.match(/<p>/g) || []).length;
+  assert.equal(pCount, 1, "expected one <p>, got " + pCount + ": " + out);
+  assert.match(out, /<strong>Serverless Aurora/);
+  assert.match(out, /keeps the cluster warm/);
+  assert.match(out, /set the timeout high/);
 });
 
 test("parseAsciidoc — HTML tags inside backticks are escaped not parsed as elements", () => {
@@ -337,6 +351,37 @@ test("manifest — every referenced post file exists", () => {
     .filter((file) => !fs.existsSync(path.join(postsDir, file)));
 
   assert.deepEqual(missing, []);
+});
+
+test("manifest — globalAuthors resolution: initials and url derived at runtime", () => {
+  const globalAuthors = manifest.globalAuthors || {};
+
+  const resolveAuthor = (a) => {
+    const name     = typeof a === "string" ? a : a.name;
+    const global   = globalAuthors[name] || {};
+    const initials = (typeof a === "object" && a.initials)
+      || name.trim().split(/\s+/).map(w => w[0].toUpperCase()).join("").slice(0, 2);
+    const url = (typeof a === "object" && a.url) || global.url || null;
+    return { name, initials, url };
+  };
+
+  for (const post of manifest.posts) {
+    for (const raw of (post.authors || [])) {
+      const a = resolveAuthor(raw);
+      assert.ok(a.initials.length >= 1 && a.initials.length <= 2,
+        `${a.name}: initials "${a.initials}" should be 1-2 chars`);
+      assert.match(a.initials, /^[A-Z]+$/,
+        `${a.name}: initials "${a.initials}" should be uppercase letters`);
+    }
+  }
+
+  // Spot-check initials calculation
+  assert.equal(resolveAuthor("Anatoli Tsikhamirau").initials, "AT");
+  assert.equal(resolveAuthor("Paweł Kołakowski").initials, "PK");
+
+  // URL resolved from globalAuthors for both string and object form
+  assert.equal(resolveAuthor("Anatoli Tsikhamirau").url, "https://github.com/atsikham");
+  assert.equal(resolveAuthor({ name: "Paweł Kołakowski" }).url, "https://www.linkedin.com/in/pkolakow/");
 });
 
 test("posts — every AsciiDoc image reference resolves to a real file", () => {

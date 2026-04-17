@@ -79,6 +79,15 @@ function setJsonLd(html, json) {
 
 const manifest = JSON.parse(await readFile(MANIFEST, 'utf8'));
 const posts = Array.isArray(manifest) ? manifest : (manifest.posts || []);
+const globalAuthors = Array.isArray(manifest) ? {} : (manifest.globalAuthors || {});
+
+// Resolve author: accepts a string name or {name,...} object.
+// Fills url from globalAuthors registry if not set per-entry.
+const resolveAuthor = (a) => {
+  const name = typeof a === "string" ? a : a.name;
+  const global = globalAuthors[name] || {};
+  return { name, url: (typeof a === "object" && a.url) || global.url || null };
+};
 
 const baseIndex = await readFile(INDEX, 'utf8');
 
@@ -112,7 +121,7 @@ for (const post of posts) {
   html = setMetaTag(html, { attr: 'name', key: 'twitter:title', content: title });
   html = setMetaTag(html, { attr: 'name', key: 'twitter:description', content: desc });
 
-  html = setJsonLd(html, jsonLdForPost(post, url));
+  html = setJsonLd(html, jsonLdForPost({ ...post, authors: (post.authors || []).map(resolveAuthor) }, url));
 
   const outPath = path.join(OUT_DIR, `${post.id}.html`);
   await writeFile(outPath, html, 'utf8');

@@ -427,7 +427,7 @@ nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 28px;
+  padding: 16px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -440,9 +440,9 @@ nav {
   border: 1px solid var(--border);
   border-radius: 16px;
   width: 100%;
-  max-width: 1100px;
-  height: calc(100vh - 56px);
-  max-height: 880px;
+  max-width: 1400px;
+  height: calc(100vh - 32px);
+  max-height: 960px;
   overflow: hidden;
   transform: translateY(14px) scale(0.985);
   transition: transform 0.22s ease, opacity 0.22s ease;
@@ -568,12 +568,17 @@ nav {
 }
 
 .modal-body {
-  padding: 32px 44px 28px;
+  padding: 32px 36px 28px;
   color: var(--text);
   line-height: 1.9;
   font-size: 1.01rem;
   -webkit-font-smoothing: antialiased;
   flex-shrink: 0;
+  max-width: 780px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 .modal-body h1 { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 1.7rem;  font-weight: 700; margin: 0 0 20px;    color: var(--text); letter-spacing: -0.02em; }
 .modal-body h2 { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 1.35rem; font-weight: 700; margin: 36px 0 12px; color: var(--text); letter-spacing: -0.01em; }
@@ -631,6 +636,9 @@ nav {
   font-style: italic;
 }
 .modal-body table { width: 100%; border-collapse: collapse; margin-bottom: 22px; font-size: 0.93rem; }
+/* Scroll wide tables on narrow viewports without breaking table layout */
+.modal-body .table-wrap { overflow-x: auto; margin-bottom: 22px; }
+.modal-body .table-wrap table { margin-bottom: 0; }
 .modal-body th, .modal-body td { padding: 9px 14px; border: 1px solid var(--border); text-align: left; }
 .modal-body th { background: var(--surface2); font-weight: 600; }
 /* diagrams and any other images inside post content */
@@ -683,8 +691,13 @@ nav {
 /* ===== Comments ===== */
 .comments-section {
   border-top: 1px solid var(--border);
-  padding: 26px 44px 40px;
+  padding: 26px 36px 40px;
   background: var(--surface);
+  max-width: 780px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 .comments-section.comments-hidden { display: none; }
 
@@ -938,74 +951,166 @@ footer { border-top: 1px solid var(--border); padding: 24px 20px; text-align: ce
   nav { flex-wrap: wrap; gap: 12px; }
   .modal-overlay { padding: 0; }
 
-  /* Fill the true visible viewport — 100dvh shrinks when the browser chrome
-     (address bar, bottom bar) is visible, so nothing is ever hidden behind it */
-  .post-modal {
-    height: 100dvh;
-    max-height: 100dvh;
-    border-radius: 0;
-  }
+  /* Fill the true visible viewport so nothing hides behind browser chrome */
+  .post-modal { height: 100dvh; max-height: 100dvh; border-radius: 0; }
 
+  /* Stack sidebar above content pane */
   #modalContent { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
 
-  /* ── Sidebar: compact single row with only action buttons ── */
+  /* ── Topbar: one row — Close | spacer | Theme | Comments ── */
+  .modal-content-topbar {
+    padding: 0;
+    gap: 0;
+    min-height: 44px;
+  }
+
+  /* Topbar: all buttons stretch to full height, column layout, emoji + label */
+  .modal-content-topbar .modal-close,
+  .modal-content-topbar .topbar-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 56px;
+    min-height: 44px;
+    padding: 6px 12px;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--transition);
+  }
+  .modal-content-topbar .modal-close:active,
+  .modal-content-topbar .topbar-btn:active { background: var(--tag-bg); }
+
+  /* Close button: ✕ icon + "Close" label */
+  .modal-content-topbar .modal-close {
+    border-right: 1px solid var(--border);
+    font-size: 0; color: transparent; /* hide inline text */
+  }
+  .modal-content-topbar .modal-close::before { content: "✕"; font-size: 1rem; color: var(--text-muted); line-height: 1; }
+  .modal-content-topbar .modal-close::after  { content: "Close"; font-size: 0.6rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.03em; text-transform: uppercase; }
+
+  /* Theme & comments topbar buttons */
+  .modal-content-topbar .topbar-btn {
+    border-left: 1px solid var(--border);
+    font-size: 1.1rem; line-height: 1;
+  }
+  .modal-content-topbar .topbar-btn span {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  /* Shorten "Show comments" → "Comments" */
+  .modal-content-topbar .topbar-comments-btn span {
+    font-size: 0; /* hide original */
+  }
+  .modal-content-topbar .topbar-comments-btn span::before {
+    content: "Comments";
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  /* ── Sidebar: one row — Like | Comments | PDF (no tags/title/meta) ── */
+  .modal-tags, .modal-title, .modal-meta, .modal-sidebar-top { display: none; }
+
   .modal-sidebar {
     border-right: none;
     border-bottom: 1px solid var(--border);
     flex-direction: row;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
     overflow-y: visible;
     flex-wrap: nowrap;
+    background: var(--surface2);
+    min-height: 52px;
   }
 
-  /* Hide space-heavy elements — tags take multiple lines, title & meta
-     are visible in the article itself */
-  .modal-tags,
-  .modal-title,
-  .modal-meta,
-  .modal-sidebar-top { display: none; }
-
-  /* Actions row fills the sidebar */
   .modal-sidebar-actions {
+    flex: 1;
+    display: flex;
     flex-direction: row;
+    gap: 0;
     margin-top: 0;
     padding-top: 0;
     border-top: none;
-    gap: 4px;
-    flex: 1;
   }
+
+  /* Each action: equal columns, emoji on top, short label below */
   .modal-sidebar-actions .action-btn {
-    width: auto;
-    padding: 5px 8px;
-    font-size: 0.8rem;
-  }
-  /* Hide text labels on action buttons — keep emoji and like count */
-  .modal-sidebar-actions .like-label { display: none; }
-  .modal-sidebar-actions .comment-btn span,
-  .modal-sidebar-actions .pdf-btn span { display: none; }
-
-  /* ── Topbar: icon-only, minimal height ── */
-  .modal-content-topbar {
-    padding: 5px 10px;
-    gap: 4px;
-  }
-  /* Hide text labels on topbar buttons */
-  .modal-content-topbar .topbar-btn span,
-  .modal-content-topbar .modal-close span { display: none; }
-  .modal-content-topbar .topbar-btn {
-    padding: 5px 8px;
-    font-size: 1rem; /* emoji size */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px;
+    border-radius: 0;
     border: none;
+    border-right: 1px solid var(--border);
     background: transparent;
+    min-height: 52px;
+    cursor: pointer;
+    transition: background var(--transition);
   }
-  .modal-content-topbar .modal-close {
-    padding: 5px 8px;
-    font-size: 0.9rem;
+  .modal-sidebar-actions .action-btn:last-child { border-right: none; }
+  .modal-sidebar-actions .action-btn:active { background: var(--tag-bg); }
+
+  /* Emoji row — inherit natural size */
+  .modal-sidebar-actions .action-btn > span:first-child { font-size: 1.2rem; line-height: 1; }
+
+  /* Like button: "❤️ Like (N)" → keep emoji + count, hide "Like"/"Liked" word */
+  .modal-sidebar-actions .like-label {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .modal-sidebar-actions .like-count {
+    display: block;
+    font-size: 0.65rem;
+    opacity: 0.7;
+    color: var(--text-muted);
   }
 
-  /* Extra bottom padding so comments/submit button clears home indicator */
+  /* Comment button: show count as label */
+  .modal-sidebar-actions .comment-btn span {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* PDF button: hide "Export PDF", show "PDF" */
+  .modal-sidebar-actions .pdf-btn span {
+    font-size: 0; /* hide "Export PDF" */
+  }
+  .modal-sidebar-actions .pdf-btn span::before {
+    content: "PDF";
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  /* Extra padding so content clears the home indicator */
   .modal-scroll-area {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
   }

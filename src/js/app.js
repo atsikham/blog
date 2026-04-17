@@ -134,7 +134,7 @@ function parseAsciidoc(adoc) {
         .map(r => `<tr>${r.map(c => `<td>${inlineFormat(c)}</td>`).join("")}</tr>`)
         .join("")}</tbody>`;
 
-      const idx = tables.push(`<table>${thead}${tbody}</table>`) - 1;
+      const idx = tables.push(`<div class="table-wrap"><table>${thead}${tbody}</table></div>`) - 1;
       return `\x00TABLE${idx}\x00`;
     }
   );
@@ -237,12 +237,13 @@ function parseAsciidoc(adoc) {
         // blank line → end of paragraph
         flushPara();
         outLines.push(line);
-      } else if (/^</.test(t) || /^\x00/.test(t)) {
+      } else if (/^</.test(t) && !/^<(strong|em|code|a)[\s>]/i.test(t) || /^\x00/.test(t)) {
         // block HTML or placeholder → flush any open paragraph first
+        // (inline elements like <strong>/<em> are NOT treated as block boundaries)
         flushPara();
         outLines.push(line);
       } else {
-        // plain text — accumulate into current paragraph
+        // plain text or inline HTML — accumulate into current paragraph
         para.push(t);
       }
     }
@@ -283,14 +284,22 @@ async function loadPosts() {
   const manifest = await manifestRes.json();
 
   // The manifest can be the new object shape or the older bare array.
-  // Keep both working so old content doesn't break.
-  const postMetas   = Array.isArray(manifest) ? manifest : manifest.posts;
-  const globalExclude = Array.isArray(manifest)
-    ? []
-    : (manifest.globalExcludeTagsFromAbout || []);
+  const postMetas     = Array.isArray(manifest) ? manifest : manifest.posts;
+  const globalExclude = Array.isArray(manifest) ? [] : (manifest.globalExcludeTagsFromAbout || []);
+  const globalAuthors = Array.isArray(manifest) ? {} : (manifest.globalAuthors || {});
 
-  // Store global tag exclusions in state so renderAboutTags can read them.
   state.globalExcludeTagsFromAbout = new Set(globalExclude);
+
+  // Normalise an author entry — can be a plain string or a {name,...} object.
+  // Fills initials (first letter of each word, max 2) and url from globalAuthors.
+  const resolveAuthor = (a) => {
+    const name    = typeof a === "string" ? a : a.name;
+    const global  = globalAuthors[name] || {};
+    const initials = (typeof a === "object" && a.initials)
+      || name.trim().split(/\s+/).map(w => w[0].toUpperCase()).join("").slice(0, 2);
+    const url = (typeof a === "object" && a.url) || global.url || null;
+    return { name, initials, url };
+  };
 
   return Promise.all(
     postMetas.map(async (meta) => {
@@ -298,8 +307,6 @@ async function loadPosts() {
       const text = await res.text();
       const content = parseContent(text, meta.file);
 
-      // Read time is calculated from the source file itself.
-      // That keeps the manifest small and avoids stale numbers.
       const wordCount = text
         .replace(/```[\s\S]*?```/g, "")
         .replace(/\[source[^\]]*\]\n-{4,}[\s\S]*?-{4,}/g, "")
@@ -308,7 +315,9 @@ async function loadPosts() {
       const mins    = Math.max(1, Math.round(wordCount / 200));
       const readTime = `${mins} min read`;
 
-      return { ...meta, readTime, content };
+      const authors = (meta.authors || []).map(resolveAuthor);
+
+      return { ...meta, authors, readTime, content };
     })
   );
 }
@@ -326,6 +335,7 @@ const state = {
   activeFilters: new Set(),
   searchQuery: "",
   openPostId: null,
+  scrollYBeforeModal: null,
   currentPaginationPage: 1,
   tagsExpanded: false,
   // comment threads are collapsed by default; this set tracks the ones the
@@ -672,6 +682,9 @@ function openPost(postId, scrollToComments = false, skipAnimation = false) {
   const post = state.posts.find((p) => p.id === postId);
   if (!post) return;
 
+  // Save scroll position so closing the modal returns to the same spot.
+  state.scrollYBeforeModal = window.scrollY;
+
   // Update SEO metadata for the now-open article
   applyPostSEO(post);
 
@@ -980,6 +993,9 @@ function bindCommentInteractions() {
 
 function exportPostAsPDF(post) {
   const authors = formatAuthors(post.authors);
+  // Strip the leading <h1> from content — the pdf-header already has the title.
+  const pdfContent = post.content.replace(/^\s*<h1>[^<]*<\/h1>\s*/i, "");
+
   const win = window.open("", "_blank");
   win.document.write(`<!DOCTYPE html>
 <html lang="en">
@@ -996,9 +1012,9 @@ function exportPostAsPDF(post) {
       font-size: 11pt;
       line-height: 1.7;
       color: #18181b;
-      max-width: 680px;
+      max-width: 780px;
       margin: 0 auto;
-      padding: 40px 32px;
+      padding: 40px 36px;
     }
 
     .pdf-header { border-bottom: 2px solid #e9e5dd; padding-bottom: 20px; margin-bottom: 28px; }
@@ -1086,9 +1102,45 @@ function exportPostAsPDF(post) {
       justify-content: space-between;
     }
 
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+      font-size: 10pt;
+      table-layout: auto;
+    }
+    th, td { padding: 7px 12px; border: 1px solid #e9e5dd; text-align: left; word-break: break-word; }
+    th { background: #f5f3ee; font-weight: 600; }
+
+    img {
+      max-width: 100%;
+      max-height: 420px;
+      height: auto;
+      display: block;
+      margin: 20px auto;
+      page-break-inside: avoid;
+    }
+
     @media print {
-      body { padding: 0; }
-      @page { margin: 20mm 18mm; }
+      body {
+        padding: 0;
+        max-width: none; /* let @page margins control the width */
+        font-size: 10pt;
+      }
+      @page { margin: 15mm 15mm; }
+      table {
+        width: 100%;
+        font-size: 9pt;
+        page-break-inside: auto;
+      }
+      tr { page-break-inside: avoid; }
+      th, td { padding: 5px 8px; }
+      img {
+        max-width: 100%;
+        max-height: 360px;
+        height: auto;
+        page-break-inside: avoid;
+      }
     }
   </style>
 </head>
@@ -1100,7 +1152,7 @@ function exportPostAsPDF(post) {
       <strong>${authors}</strong> &nbsp;·&nbsp; ${post.date} &nbsp;·&nbsp; ${post.readTime}
     </div>
   </div>
-  <div class="pdf-body">${post.content}</div>
+  <div class="pdf-body">${pdfContent}</div>
   <div class="pdf-footer">
     <span>tikho.me</span>
     <span>Exported ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
@@ -1122,6 +1174,10 @@ function closeModal() {
   _pendingReplyToId = null;
   setHash("home");
   applyHomeSEO();
+  // Restore the scroll position the user was at before opening the post.
+  const savedY = state.scrollYBeforeModal ?? 0;
+  state.scrollYBeforeModal = null;
+  window.scrollTo({ top: savedY, behavior: "instant" });
 }
 
 // ============================================================
@@ -1255,18 +1311,19 @@ function setHash(page, postId = null) {
   }
 }
 
-function showPage(page, { updateHash = true } = {}) {
+function showPage(page, { updateHash = true, scrollToTop = true } = {}) {
   if (!VALID_PAGES.includes(page)) page = "home";
+  const changing = state.currentPage !== page;
   state.currentPage = page;
   document.querySelectorAll(".page").forEach((el) => el.classList.remove("active"));
   document.getElementById(`page-${page}`).classList.add("active");
   document.querySelectorAll(".nav-links a").forEach((a) => {
     a.classList.toggle("active", a.dataset.page === page);
   });
-  // updateHash:false is passed during the initial page restore so that
-  // showPage("home") doesn't overwrite a "#post-1" hash before openPost() runs.
   if (updateHash) setHash(page);
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  // Only scroll to top when actually navigating to a different page,
+  // not when re-activating the same page (e.g. closing a modal).
+  if (scrollToTop && changing) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 

@@ -1,0 +1,697 @@
+= Practical tips on cost saving with AWS for EKS-based platforms
+
+AWS bills have a way of growing quietly.
+You add a cluster here, spin up an environment for someone there, and before long you're staring at a five-figure monthly invoice wondering where it all went.
+
+The frustrating part is that most of the waste isn't obvious.
+There's no single line item called "waste" — it's spread across NAT gateway fees, data crossing availability zone boundaries, nodes idling at 10% CPU, and services your organisation already runs that you're paying for again.
+
+This post walks through the areas where I've seen the biggest savings on EKS platforms.
+None of it requires rebuilding your infrastructure — most of these are small, targeted changes that pay for themselves quickly.
+
+== Resource lifecycle and environment cleanup
+
+Non-production environments and unused resources are probably the single biggest source of unnecessary spend on EKS.
+A resource that gets created for research and never deleted keeps running pods, nodes, NAT gateways, load balancers, and databases around the clock — with barely anyone using them.
+
+=== TTL for environments and unused resources
+
+The most reliable fix is a TTL (time-to-live) policy.
+Every non-production environment and every resource without an active owner gets an expiry date.
+When the date passes, it gets suspended or deleted automatically — no manual chasing required.
+
+On Kubernetes, this can be as simple as an annotation on a namespace or custom resource that a controller watches:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-feature-env
+  annotations:
+    platform.example.com/ttl: "2026-05-01"   # delete after this date
+----
+
+The controller sees the namespace is past its TTL, drains the workloads and cleans up any associated cloud resources.
+
+The same idea works outside Kubernetes too.
+Tag every AWS resource with an owner and an expiry, then run a periodic Lambda or pipeline step that flags anything past its TTL or missing an owner tag entirely.
+
+Without a TTL policy, resources pile up and someone has to manually hunt them down.
+With one, the platform stays lean and teams have to actively renew anything they still need.
+
+=== Suspend non-production workloads outside business hours
+
+TTLs catch forgotten environments.
+But even an actively used dev cluster wastes money overnight and on weekends — nobody runs a test at 3am, yet the nodes are still there, fully provisioned and billing by the hour.
+
+The fix is straightforward: scale all non-production workloads down to zero replicas outside business hours, and back up at the start of the working day.
+On EKS it can be done with a pair of scheduled Kubernetes `CronJobs` that target namespaces labelled as non-prod:
+
+[source,yaml]
+----
+# Scale down at 8pm UTC on weekdays
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: downscale-non-prod
+  namespace: platform-ops
+spec:
+  schedule: "0 20 * * 1-5"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: workload-scaler
+          restartPolicy: OnFailure
+          containers:
+            - name: kubectl
+              image: bitnami/kubectl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  for ns in $(kubectl get ns -l env-type=non-prod -o name); do
+                    kubectl scale deploy,statefulset --all --replicas=0 -n ${ns#*/}
+                  done
+---
+# Scale back up at 7am UTC on weekdays
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: upscale-non-prod
+  namespace: platform-ops
+spec:
+  schedule: "0 7 * * 1-5"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: workload-scaler
+          restartPolicy: OnFailure
+          containers:
+            - name: kubectl
+              image: bitnami/kubectl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  for ns in $(kubectl get ns -l env-type=non-prod -o name); do
+                    kubectl scale deploy,statefulset --all --replicas=1 -n ${ns#*/}
+                  done
+----
+
+A few things worth keeping in mind:
+
+* Label namespaces with `env-type=non-prod` so the CronJob only touches development environments.
+For Kubernetes custom resources, you can include this flag in the resource's spec.
+Production namespaces should never be in scope.
+* If workloads run more than one replica, store the original count before scaling down so the upscale restores the right number.
+Tools like https://codeberg.org/hjacobs/kube-downscaler[Kube-downscaler] handle this automatically via an annotation.
+* Once pods are gone, Karpenter will consolidate and terminate the now-empty nodes after
+`consolidateAfter` — so you stop paying for EC2 capacity overnight too.
+* For teams spread across time zones, per-namespace schedule annotations give more flexibility than a single global schedule.
+
+A 12-hour working day across five weekdays leaves 108 out of 168 weekly hours where nothing is running — roughly *64% of non-production runtime*.
+
+=== Clean up detached EBS volumes and retained PersistentVolumes
+
+In Kubernetes, a `PersistentVolume` is bound to a `PersistentVolumeClaim`, which a pod uses for storage.
+When a `Deployment` or `StatefulSet` is scaled down to zero or deleted — or a whole namespace is torn down — what happens to the underlying EBS volume depends entirely on the
+`reclaimPolicy` configured on the `StorageClass` or the volume itself.
+
+There are https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming[three policies] at the moment: Delete, Retain and Recycle (deprecated).
+For ephemeral workloads, use `reclaimPolicy: Delete` so cleanup is automatic:
+
+[source,yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+reclaimPolicy: Delete        # volume deleted when the PVC is deleted
+volumeBindingMode: WaitForFirstConsumer
+----
+
+==== When Retain is intentional — clean up after yourself
+
+`Retain` makes sense for stateful workloads where you can't afford to lose data on a namespace deletion.
+The problem is that teams set it, recover what they need, and then forget the original volume is still sitting there running up the bill.
+
+Once you're done with a retained `PersistentVolume`, clean it up explicitly:
+
+[source,bash]
+----
+# List PersistentVolumes in Released state (PVC deleted, volume still exists)
+# or Available state (never claimed)
+kubectl get pv --field-selector=status.phase=Released
+kubectl get pv --field-selector=status.phase=Available
+
+# Delete the PV object once confirmed no longer needed
+kubectl delete pv <pv-name>
+----
+
+Deleting the `PersistentVolume` object in Kubernetes does *not* delete the EBS volume when the policy is `Retain` — you need to do that in AWS separately:
+
+[source,bash]
+----
+# Get the EBS volume ID from the PV before deleting it
+kubectl get pv <pv-name> -o jsonpath='{.spec.csi.volumeHandle}'
+
+# Delete it in AWS
+aws ec2 delete-volume --volume-id <volume-id>
+----
+
+==== Find all orphaned EBS volumes in AWS
+
+You can also go straight to AWS and find every unattached volume regardless of how it was created:
+
+[source,bash]
+----
+aws ec2 describe-volumes \
+  --filters Name=status,Values=available \
+  --query 'Volumes[*].[VolumeId,Size,CreateTime,Tags]' \
+  --output table
+----
+
+`available` means the volume exists but isn't attached to anything.
+On a cluster that has been running for a while it's common to find dozens — volumes from deleted
+`StatefulSets`, abandoned debug PVCs, or `Retain`-policy volumes that were never followed up on.
+
+NOTE: Be careful - If the environment is suspended, volumes may be shown as available as nothing consumes them.
+
+=== Decommission idle tooling and unused AWS resources
+
+Everything you run has a baseline cost, even at zero utilisation.
+It's worth doing a periodic review of what's actually still needed and removing anything that isn't.
+Common offenders:
+
+* **Over-provisioner** — a deployment that pre-creates empty pods to keep spare capacity ready.
+Once Karpenter is tuned, this is usually no longer needed and just keeps extra nodes running permanently.
+* **Stale ECR images** — ECR charges per GB stored.
+Set up lifecycle policies to expire untagged images and old tagged versions beyond a sensible retention count.
+* **Idle RDS instances** — databases created for a feature branch or load test that never got removed.
+A stopped RDS instance still has storage costs; a deleted one doesn't.
+* **Unassociated Elastic IPs** — EIPs not attached to anything cost ~$3.65/month each and quietly build up after environments are torn down.
+* **Old VPCs from deleted environments** — a NAT gateway attached to a VPC with no live traffic still bills by the hour.
+* **S3 buckets left over from deleted services** — log, artifact, and backup buckets that linger long after the workload that needed them is gone.
+
+== Karpenter with consolidation and Spot instances
+
+If there's one change that has the biggest impact on compute spend, it's replacing the Cluster Autoscaler with https://karpenter.sh[Karpenter] and enabling Spot instances with consolidation.
+
+=== Why Karpenter is cheaper by default
+
+The Cluster Autoscaler works within the node groups you've already defined.
+It can scale them up and down, but it's limited to the instance types you've configured.
+Karpenter removes that constraint — it looks at the exact CPU and memory requests of pending pods and picks the cheapest instance that fits, across whatever families you allow.
+
+The result is much better node utilisation from day one.
+You stop paying for half-empty nodes that exist only because your node group came in a few fixed sizes.
+
+=== Spot instances with multi-family diversification
+
+Spot instances are unused EC2 capacity that AWS sells at a 70–90% discount.
+The trade-off is that AWS can reclaim them with two minutes' notice.
+The way to make Spot safe in practice is to allow many instance families and sizes — if AWS takes back a specific instance type, Karpenter can immediately replace it with something similar from a different family.
+
+[source,yaml]
+----
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - spot
+            - on-demand        # fallback when Spot isn't available
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - m7i
+            - m7g              # Graviton — see section below
+            - c7i
+            - c7g              # add more families for better Spot availability
+        - key: karpenter.k8s.aws/instance-size
+          operator: NotIn
+          values:
+            - nano
+            - micro
+            - small            # too small to be efficient
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    consolidateAfter: 30s
+----
+
+The longer the `instance-family` list, the lower your interruption rate.
+Don't hold back here — more families means more options for Karpenter to find capacity.
+
+=== Consolidation: the gap the Cluster Autoscaler never filled
+
+The Cluster Autoscaler removes a node only when it's completely empty.
+Karpenter's `WhenUnderutilized` policy goes further — it continuously checks whether existing pods could fit on fewer nodes, then safely drains and removes the extras.
+
+On workloads with variable traffic this typically cuts idle-node spend by 20–40%.
+
+Tune `consolidateAfter` based on environment type — be cautious in production, aggressive in development:
+
+[source,yaml]
+----
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    consolidateAfter: 5m        # prod
+    budgets:
+      - nodes: "10%"            # never consolidate more than 10% of nodes at once
+----
+
+== Graviton instances
+
+AWS Graviton instances (ARM64 architecture) are typically *10–20% cheaper* than equivalent x86 instances, and often faster per core too.
+They're a clear win for most container workloads — Go, Java, Python, Node.js, and Rust all run on ARM64 without any code changes.
+
+The only thing to check is your base images.
+Most official images are multi-arch and just work.
+If you're building your own, add an ARM64 build with `docker buildx` and you're done.
+
+To use Graviton, just add the appropriate families to the `NodePool` alongside existing x86 families:
+
+[source,yaml]
+----
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - m7g    # Graviton3
+            - c7g    # add r7g, x8g etc. as needed
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - arm64
+            - amd64   # keep amd64 as a fallback
+----
+
+If a workload can't run on ARM64 — a third-party binary with no ARM build, for example — put it in a separate `NodePool` with `amd64` only and use a `nodeSelector` to send it there.
+
+The savings compound nicely with Spot: a Graviton Spot instance can be 70–85% cheaper than an x86 On-Demand node of the same size.
+
+== Avoiding cross-AZ data transfer costs
+
+AWS charges $0.01/GB for traffic that crosses an availability zone boundary.
+That's a small number per gigabyte, but on a busy cluster with services constantly calling each other, it adds up fast — and it's completely invisible until you filter for it in Cost Explorer.
+
+=== Keep pod-to-pod traffic within the same AZ
+
+https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/[Topology-aware routing] tells Kubernetes to prefer sending traffic to pods in the same AZ as the caller:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  annotations:
+    service.kubernetes.io/topology-mode: "Auto"
+spec:
+  type: ClusterIP
+  ...
+----
+
+For Kubernetes 1.27+ the annotation is `service.kubernetes.io/topology-mode: "Auto"`.
+It tells `kube-proxy` to prefer endpoints in the same AZ, and only route to another AZ if no healthy local pod is available.
+
+=== NLB: disable cross-zone load balancing
+
+When you expose a service through a Network Load Balancer, turn off cross-zone load balancing so each AZ's NLB node only routes to pods in its own AZ:
+
+[source,yaml]
+----
+metadata:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: >-
+      preserve_client_ip.enabled=true,
+      deregistration_delay.timeout_seconds=30
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "false"
+----
+
+Combined with topology-aware routing at the `Service` level, most traffic will never leave the AZ it started in.
+
+=== NAT gateway: one per AZ, not one for everything
+
+A very common mistake is running a single NAT gateway in one AZ and routing all private subnets through it.
+Traffic from pods in other AZs has to cross a zone boundary to reach the NAT gateway, and then cross back again on the return trip — so you pay the cross-AZ charge twice.
+
+The fix is one NAT gateway per AZ, with each private subnet routing to the gateway in its own AZ:
+
+[source,hcl]
+----
+resource "aws_nat_gateway" "this" {
+  for_each      = var.public_subnets_by_az   # map of AZ -> subnet_id
+  allocation_id = aws_eip.nat[each.key].id
+  subnet_id     = each.value
+
+  tags = merge(local.tags, { Name = "${local.name}-nat-${each.key}" })
+}
+
+resource "aws_route" "private_nat" {
+  for_each               = var.private_route_tables_by_az
+  route_table_id         = each.value
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.this[each.key].id
+}
+----
+
+Yes, you pay for three NAT gateways instead of one.
+But on a busy cluster the cross-AZ savings consistently outweigh the extra NAT hourly cost.
+
+== PrivateLink for AWS service access
+
+By default, when a pod talks to an AWS service — S3, ECR, STS, SSM — the traffic goes through a NAT gateway, which charges $0.045/GB for processing on top of normal data transfer fees.
+
+VPC Endpoints fix this.
+A Gateway Endpoint (for S3 and DynamoDB) routes traffic directly through the AWS network at no extra cost.
+An Interface Endpoint (PrivateLink) keeps traffic to most other AWS services entirely inside your VPC, so it never touches the NAT gateway.
+
+S3 and DynamoDB Gateway Endpoints are free — enable them without hesitation.
+Interface Endpoints cost around $7–10/month per AZ per service, but on a cluster that pulls images often or reads from SSM at pod startup, you recover that cost quickly.
+
+[source,hcl]
+----
+# Gateway endpoint — free
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = module.network.private_route_table_ids
+}
+
+# Interface endpoint — charged per AZ
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id              = module.network.vpc_id
+  service_name        = "com.amazonaws.${var.region}.ecr.dkr"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = module.network.private_subnet_ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+----
+
+Once the ECR endpoint is in place, image pulls never touch the NAT gateway.
+
+== gp3 EBS volumes for node storage
+
+Karpenter provisions nodes with whatever EBS settings you put in the `EC2NodeClass`.
+The older `gp2` volume type slows down once its burst credits run out.
+`gp3` gives a guaranteed baseline of 3,000 IOPS and 125 MB/s regardless of volume size — and it's around 20% cheaper per GB than `gp2`.
+
+[source,yaml]
+----
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: 50Gi
+        iops: 3000          # free baseline; increase if needed
+        throughput: 125     # MB/s
+        encrypted: true
+        deleteOnTermination: true
+----
+
+There's no reason to stay on `gp2` — `gp3` is cheaper and more predictable.
+
+== EFS throughput mode
+
+If any of your workloads use Amazon EFS for shared storage, check which throughput mode you're on.
+There are three options:
+
+* **Bursting** — throughput scales with how much data you have stored.
+Fine for large file systems with bursty I/O, but you end up overprovisioning storage just to get enough throughput credits.
+* **Provisioned** — you choose a fixed MB/s regardless of storage size.
+Predictable, but you pay for that throughput 24/7 whether you use it or not.
+* **Elastic** — throughput scales automatically with actual demand and you pay only per GB read or written.
+Available since 2022.
+
+For most EKS workloads — config mounts, shared assets, infrequent large reads — usage is spiky and low on average.
+Elastic mode fits that profile well: you only pay for what you actually use.
+
+[source,hcl]
+----
+resource "aws_efs_file_system" "this" {
+  throughput_mode = "elastic"   # replaces provisioned or bursting
+  encrypted       = true
+  kms_key_id      = var.kms_key_arn
+
+  tags = local.tags
+}
+----
+
+If you're currently on Provisioned because burst credits kept running out, check the
+`MeteredIOBytes` CloudWatch metric first — if average throughput is well below your provisioned limit, switching to Elastic will save money right away.
+
+== Use shared organisational services
+
+One of the easiest cost reductions is simply not paying for something your organisation already runs for you.
+For example:
+
+=== Artifact management
+
+If your organisation has a shared artifact repository, use it as a proxy and cache for Docker images, Helm charts, and language packages instead of setting up a separate registry per team.
+
+The benefits are simple:
+
+* Image pulls travel over the internal network, so there's no egress cost to the internet.
+* Upstream images are cached centrally — the first team to pull an image pays the egress, every team after gets it for free.
+* If two teams use the same base image, it's stored once rather than twice.
+
+=== CI/CD pipelines
+
+If your organisation runs a shared CI/CD platform, use it instead of running your own runners.
+A shared platform spreads fixed costs across the whole organisation, so each team pays far less per build minute.
+
+=== Observability: don't forward everything
+
+Most observability platforms charge per metric time series.
+EKS clusters emit a large number of Kubernetes and AWS metrics by default, many of which nobody has dashboards for and nothing alerts on.
+
+Audit what your metrics agent is actually forwarding and drop what you don't need:
+
+* System namespace metrics (`kube-system`, `cert-manager`, etc.) that no team queries.
+* Per-pod granularity where per-deployment is enough.
+* Prometheus scraped metrics for things already covered by CloudWatch (ELB, for example).
+
+Even a 30% reduction in active series makes a real difference to the observability bill, especially as the cluster grows.
+
+== Reserved Instances and Savings Plans
+
+Spot instances and Karpenter consolidation handle the variable, interruptible part of the compute bill well.
+But most clusters also have always-on workloads that run at roughly constant capacity every hour of every day.
+
+That steady, predictable baseline is exactly what Reserved Instances (RIs) and Compute Savings Plans are for.
+Committing to that capacity in advance gets you a significant discount without changing anything about how your workloads run.
+
+AWS offers a few flavours:
+
+* **Compute Savings Plans** — you commit to a $/hour spend, and it applies automatically to any EC2 usage, Fargate, and Lambda across any instance family, size, region, or OS.
+Most flexible; up to 66% off On-Demand (typically 40–60% for 1-year plans, higher for 3-year).
+* **EC2 Instance Savings Plans** — scoped to a specific instance family and region.
+Slightly deeper discount but less flexible.
+* **Reserved Instances** (Standard or Convertible) — tied to a specific instance type.
+Standard RIs give the deepest discount but lock you in firmly.
+Convertible RIs can be exchanged for a slightly lower discount.
+
+For a Karpenter-managed cluster, **Compute Savings Plans are the better choice**.
+Karpenter shifts workloads across instance families as it optimises — a Savings Plan covers all of that automatically, whereas an RI tied to `m7i.xlarge` is wasted if Karpenter switches to `c7g.xlarge`.
+
+== CloudWatch log group retention
+
+CloudWatch Logs is probably the most overlooked source of creeping cost on AWS.
+By default, every log group keeps data forever — and you pay $0.03/GB per month to store it.
+Logs from pods, Lambdas, EKS control plane audit trails, and VPC flow logs pile up indefinitely until someone sets a retention policy on them.
+
+On a busy cluster with verbose logging, you can easily accumulate terabytes of logs that nobody ever reads.
+
+=== Set retention on every log group
+
+AWS supports retention periods from 1 day to 10 years.
+For most teams, 30 days covers live debugging and 90 days covers audit requirements.
+The important thing is to set it — never leave it unset.
+
+In Terraform:
+
+[source,hcl]
+----
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/eks/${var.cluster_name}/application"
+  retention_in_days = 30   # never leave this unset
+  kms_key_id        = var.kms_key_arn
+
+  tags = local.tags
+}
+----
+
+=== Find log groups with no retention policy
+
+If you have an existing environment, this query will show you every log group that has no retention set along with how much data it's storing:
+
+[source,bash]
+----
+aws logs describe-log-groups \
+  --query 'logGroups[?retentionInDays==`null`].[logGroupName,storedBytes]' \
+  --output table
+----
+
+Then fix them:
+
+[source,bash]
+----
+aws logs put-retention-policy \
+  --log-group-name "/aws/eks/my-cluster/cluster" \
+  --retention-in-days 90
+----
+
+At scale, it's better to automate this as a periodic check — a Lambda that scans for log groups without a retention policy and either alerts or fixes them automatically.
+
+=== Archive to S3 for long-term compliance
+
+If compliance requires keeping logs beyond 90 days, but you don't need to query them in CloudWatch, export to S3 and apply a lifecycle policy to move them to Glacier.
+S3 Glacier storage costs roughly 8–10× less than CloudWatch for the same data.
+
+Short retention in CloudWatch for live debugging, long-term archive in Glacier for compliance — that combination is almost always cheaper than keeping everything in CloudWatch forever.
+
+== AWS cost optimization tools
+
+All of the above requires knowing where money is actually going.
+AWS has a few built-in tools that surface waste and flag right-sizing opportunities.
+
+**Cost Explorer** is the first place to look.
+It breaks down spend by service, region, account, or tag.
+For EKS the most useful views are daily cost by service (to spot spikes), EC2 usage type (to see the On-Demand vs Spot split), and the Savings Plans recommendations tab.
+Tagging is what makes it genuinely useful — apply consistent tags to all cluster resources and activate them as cost allocation tags in the Billing console so you can filter to a specific team or workload.
+
+**Trusted Advisor** runs automated checks across your account and flags idle load balancers, unassociated Elastic IPs, underused EBS volumes, and On-Demand usage that a Savings Plan could cover.
+Cost checks are available on all support plans; the full set requires Business or Enterprise.
+
+**Compute Optimizer** looks at CloudWatch usage data and suggests better-fitting instance types for EC2 and EBS.
+On EKS it's most useful for fixed managed node groups — system add-ons like CoreDNS and kube-proxy that Karpenter doesn't manage.
+It's free to enable but needs at least 14 days of data before making suggestions, so turn it on early.
+
+**Cost Anomaly Detection** uses machine learning to alert you when spend jumps unexpectedly — a misconfigured `NodePool` launching large On-Demand instances, an environment left running over a long weekend, or a sudden spike in S3 access costs.
+Set up a monitor per service category with a dollar threshold so you hear about it before it becomes a big number.
+The service is free.
+
+== Putting it all together
+
+None of these require a big migration.
+They can be rolled out one at a time, roughly in order of impact:
+
+[cols="1,2,2",options="header"]
+|===
+| Priority | Change | Typical saving
+
+| 1
+| Karpenter + Spot with multi-family diversification
+| 40–70% of compute cost
+
+| 2
+| Karpenter consolidation (`WhenUnderutilized`)
+| 20–40% of remaining compute cost
+
+| 3
+| Reserved Instances / Compute Savings Plans on the baseline
+| 40–66% on committed On-Demand spend
+
+| 4
+| Graviton instances in the NodePool
+| 10–20% of compute cost on eligible workloads
+
+| 5
+| S3 + DynamoDB Gateway Endpoints (free)
+| Eliminate NAT processing fee on high-volume S3 traffic
+
+| 6
+| One NAT gateway per AZ
+| Eliminate cross-AZ transfer on outbound traffic
+
+| 7
+| Topology-aware routing + NLB zonal mode
+| Eliminate cross-AZ transfer on internal traffic
+
+| 8
+| Endpoints
+| Eliminate NAT fee on image pulls and token exchange
+
+| 9
+| `gp3` EBS on all node classes
+| ~20% cheaper than `gp2` with better baseline performance
+
+| 10
+| EFS elastic throughput
+| Pay per I/O instead of provisioned MB/s
+
+| 11
+| TTL for non-production environments and unused resources
+| Eliminate idle cluster spend between sprints
+
+| 12
+| Scale down non-prod workloads outside business hours
+| ~60% reduction in non-prod compute hours
+
+| 13
+| Detached EBS volume cleanup + `reclaimPolicy: Delete`
+| Remove orphaned storage accumulating over months
+
+| 14
+| Decommission idle tooling and unused AWS resources
+| Eliminate baseline cost of unused components
+
+| 15
+| Use shared org artifact repository instead of self-managed registries
+| Eliminate egress on repeated image pulls
+
+| 16
+| Shared CI/CD platform
+| Eliminate idle runner nodes
+
+| 17
+| Metrics reduction
+| Reduce observability platform per-series cost
+
+| 18
+| CloudWatch log group retention (30–90 days) + S3 Glacier archive
+| Eliminate indefinite log storage cost
+
+| 19
+| Enable Cost Explorer tags, Trusted Advisor, Compute Optimizer, Cost Anomaly Detection
+| Continuously surface waste and catch unexpected spend spikes early
+|===
+
+Start with Karpenter and Spot — compute is almost always the biggest line item, and spreading across multiple instance families makes Spot safe enough for production workloads.
+Then work down the list.
+
+== Conclusion
+
+Cost on EKS doesn't go down by accident — it goes down because someone made a series of deliberate, targeted decisions.
+The good news is that most of the high-impact changes here are low-risk and can be shipped step by step, without touching your application code or disrupting running workloads.
+
+The idea connecting all of them is simple: *pay for what you use, and keep traffic off the boundaries AWS charges for*.
+Karpenter consolidation ensures you use only the nodes you need.
+Graviton and Spot reduce the unit cost of those nodes.
+Savings Plans lock in a discount on the baseline that Spot can't cover.
+PrivateLink and zonal routing keep traffic inside the free network path.
+TTLs and lifecycle policies stop waste from quietly building up over time.
+Shared services mean you're not paying to run something your organisation already operates.
+
+Put them together and a 50–60% reduction in the overall AWS bill is a realistic outcome for a platform that was previously running fixed node groups with default networking and no lifecycle controls.

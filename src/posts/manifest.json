@@ -1,12 +1,16 @@
 {
   "globalExcludeTagsFromAbout": ["JavaScript", "Career", "Freelancing", "Upwork", "Personal Story", "Lessons Learned"],
+  "globalAuthors": {
+    "Anatoli Tsikhamirau": { "url": "https://github.com/atsikham" },
+    "Paweł Kołakowski":    { "url": "https://www.linkedin.com/in/pkolakow/" }
+  },
   "posts": [
     {
       "id": "1",
       "file": "how-this-blog-works.adoc",
       "title": "Building tikho.me — a static blog with no framework",
       "excerpt": "How this blog works: a static frontend on S3 + CloudFront, a small Python Lambda for likes and comments, and the fixes that made refreshes, routing and regression checks feel solid.",
-      "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
+      "authors": ["Anatoli Tsikhamirau"],
       "date": "Mar 31, 2026",
       "tags": ["AWS", "S3", "CloudFront", "Lambda", "DynamoDB", "Python", "Serverless", "Terraform", "Architecture", "JavaScript", "API Gateway", "GitHub Actions", "CI/CD", "Testing"]
     },
@@ -15,19 +19,16 @@
       "file": "self-service-k8s-platform.adoc",
       "title": "Building a self-service platform on Kubernetes with Operators, Karpenter and Kyverno",
       "excerpt": "A concept for building a self-service internal developer platform on Kubernetes — using a custom operator to manage projects and environments, Karpenter for on-demand node provisioning, and Kyverno to transparently handle pod scheduling without touching developer workloads.",
-      "authors": [
-        { "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" },
-        { "name": "Paweł Kołakowski", "initials": "PK", "url": "https://www.linkedin.com/in/pkolakow/" }
-      ],
+      "authors": ["Anatoli Tsikhamirau", "Paweł Kołakowski"],
       "date": "Apr 2, 2026",
-      "tags": ["Kubernetes", "Operator", "Karpenter", "Kyverno", "Platform Engineering", "Multi-tenancy", "Architecture", "AWS", "CRD", "Go", "IDP", "Policy", "Namespaces"]
+      "tags": ["Kubernetes", "Operator", "Karpenter", "Kyverno", "Platform Engineering", "Multi-tenancy", "Architecture", "AWS"]
     },
     {
       "id": "3",
       "file": "upwork-account-resumed.adoc",
       "title": "Success story: how my Upwork account was resumed after 4 years of suspension",
       "excerpt": "In 2022 Upwork suspended my account. The support email was unmonitored, the appeal form gave nonsensical rejections, and live agents were gone. Here's what eventually worked — and what I'd tell anyone in the same situation.",
-      "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
+      "authors": ["Anatoli Tsikhamirau"],
       "date": "Apr 5, 2026",
       "tags": ["Career", "Freelancing", "Upwork", "Personal Story", "Lessons Learned"]
     },
@@ -36,9 +37,18 @@
       "file": "wordpress-on-aws-ecs.adoc",
       "title": "Running WordPress on AWS ECS Fargate",
       "excerpt": "A practical Terraform setup for running WordPress on ECS Fargate with CloudFront, ALB, WAF, Aurora, EFS, SSM secrets, and SFTP uploads via AWS Transfer Family.",
-      "authors": [{ "name": "Anatoli Tsikhamirau", "initials": "AT", "url": "https://github.com/atsikham" }],
+      "authors": ["Anatoli Tsikhamirau"],
       "date": "Apr 6, 2026",
       "tags": ["AWS", "Terraform", "WordPress", "ECS", "Fargate", "CloudFront", "ALB", "WAF", "Aurora", "EFS", "SSM", "Route 53", "SFTP", "Architecture", "RDS", "Transfer Family"]
+    },
+    {
+      "id": "5",
+      "file": "eks-cost-optimization.adoc",
+      "title": "Practical tips on cost saving with AWS for EKS-based platforms",
+      "excerpt": "Practical techniques for cutting the AWS bill on an EKS platform: Karpenter with Spot and consolidation, Graviton instances, PrivateLink, zonal routing to eliminate cross-AZ charges, gp3 EBS, CloudWatch log retention, and leveraging shared org services.",
+      "authors": ["Anatoli Tsikhamirau"],
+      "date": "Apr 17, 2026",
+      "tags": ["AWS", "EKS", "Kubernetes", "Karpenter", "Cost Optimization", "Spot", "Graviton", "PrivateLink", "Architecture", "Terraform", "Platform Engineering", "NAT Gateway", "EBS", "CloudWatch", "CI/CD", "Trusted Advisor", "Cost Explorer"]
     }
   ]
 }
