@@ -2,7 +2,7 @@
   "globalExcludeTagsFromAbout": ["JavaScript", "Career", "Freelancing", "Upwork", "Personal Story", "Lessons Learned"],
   "globalAuthors": {
     "Anatoli Tsikhamirau": { "url": "https://github.com/atsikham" },
-    "Paweł Kołakowski":    { "url": "https://www.linkedin.com/in/pkolakow/" }
+    "Pawel Kolakowski":    { "url": "https://www.linkedin.com/in/pkolakow/" }
   },
   "posts": [
     {
@@ -19,7 +19,7 @@
       "file": "self-service-k8s-platform.adoc",
       "title": "Building a self-service platform on Kubernetes with Operators, Karpenter and Kyverno",
       "excerpt": "A concept for building a self-service internal developer platform on Kubernetes — using a custom operator to manage projects and environments, Karpenter for on-demand node provisioning, and Kyverno to transparently handle pod scheduling without touching developer workloads.",
-      "authors": ["Anatoli Tsikhamirau", "Paweł Kołakowski"],
+      "authors": ["Anatoli Tsikhamirau", "Pawel Kolakowski"],
       "date": "Apr 2, 2026",
       "tags": ["Kubernetes", "Operator", "Karpenter", "Kyverno", "Platform Engineering", "Multi-tenancy", "Architecture", "AWS"]
     },

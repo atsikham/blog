@@ -104,10 +104,10 @@ spec:
 A few things worth keeping in mind:
 
 * Label namespaces with `env-type=non-prod` so the CronJob only touches development environments.
-For Kubernetes custom resources, you can include this flag in the resource's spec.
+* For Kubernetes custom resources, you can include this flag in the resource's spec.
 Production namespaces should never be in scope.
 * If workloads run more than one replica, store the original count before scaling down so the upscale restores the right number.
-Tools like https://codeberg.org/hjacobs/kube-downscaler[Kube-downscaler] handle this automatically via an annotation.
+* Tools like https://codeberg.org/hjacobs/kube-downscaler[Kube-downscaler] handle this automatically via an annotation.
 * Once pods are gone, Karpenter will consolidate and terminate the now-empty nodes after
 `consolidateAfter` — so you stop paying for EC2 capacity overnight too.
 * For teams spread across time zones, per-namespace schedule annotations give more flexibility than a single global schedule.
@@ -189,12 +189,10 @@ Everything you run has a baseline cost, even at zero utilisation.
 It's worth doing a periodic review of what's actually still needed and removing anything that isn't.
 Common offenders:
 
-* **Over-provisioner** — a deployment that pre-creates empty pods to keep spare capacity ready.
-Once Karpenter is tuned, this is usually no longer needed and just keeps extra nodes running permanently.
+* **Over-provisioner** — a deployment that pre-creates empty pods to keep spare capacity ready. Once Karpenter is tuned, this is usually no longer needed and just keeps extra nodes running permanently.
 * **Stale ECR images** — ECR charges per GB stored.
 Set up lifecycle policies to expire untagged images and old tagged versions beyond a sensible retention count.
-* **Idle RDS instances** — databases created for a feature branch or load test that never got removed.
-A stopped RDS instance still has storage costs; a deleted one doesn't.
+* **Idle RDS instances** — databases created for a feature branch or load test that never got removed. A stopped RDS instance still has storage costs; a deleted one doesn't.
 * **Unassociated Elastic IPs** — EIPs not attached to anything cost ~$3.65/month each and quietly build up after environments are torn down.
 * **Old VPCs from deleted environments** — a NAT gateway attached to a VPC with no live traffic still bills by the hour.
 * **S3 buckets left over from deleted services** — log, artifact, and backup buckets that linger long after the workload that needed them is gone.
@@ -437,12 +435,9 @@ There's no reason to stay on `gp2` — `gp3` is cheaper and more predictable.
 If any of your workloads use Amazon EFS for shared storage, check which throughput mode you're on.
 There are three options:
 
-* **Bursting** — throughput scales with how much data you have stored.
-Fine for large file systems with bursty I/O, but you end up overprovisioning storage just to get enough throughput credits.
-* **Provisioned** — you choose a fixed MB/s regardless of storage size.
-Predictable, but you pay for that throughput 24/7 whether you use it or not.
-* **Elastic** — throughput scales automatically with actual demand and you pay only per GB read or written.
-Available since 2022.
+* **Bursting** — throughput scales with how much data you have stored. Fine for large file systems with bursty I/O, but you end up overprovisioning storage just to get enough throughput credits.
+* **Provisioned** — you choose a fixed MB/s regardless of storage size. Predictable, but you pay for that throughput 24/7 whether you use it or not.
+* **Elastic** — throughput scales automatically with actual demand and you pay only per GB read or written. Available since 2022.
 
 For most EKS workloads — config mounts, shared assets, infrequent large reads — usage is spiky and low on average.
 Elastic mode fits that profile well: you only pay for what you actually use.
@@ -504,13 +499,9 @@ Committing to that capacity in advance gets you a significant discount without c
 
 AWS offers a few flavours:
 
-* **Compute Savings Plans** — you commit to a $/hour spend, and it applies automatically to any EC2 usage, Fargate, and Lambda across any instance family, size, region, or OS.
-Most flexible; up to 66% off On-Demand (typically 40–60% for 1-year plans, higher for 3-year).
-* **EC2 Instance Savings Plans** — scoped to a specific instance family and region.
-Slightly deeper discount but less flexible.
-* **Reserved Instances** (Standard or Convertible) — tied to a specific instance type.
-Standard RIs give the deepest discount but lock you in firmly.
-Convertible RIs can be exchanged for a slightly lower discount.
+* **Compute Savings Plans** — you commit to a $/hour spend, and it applies automatically to any EC2 usage, Fargate, and Lambda across any instance family, size, region, or OS. Most flexible; up to 66% off On-Demand (typically 40–60% for 1-year plans, higher for 3-year).
+* **EC2 Instance Savings Plans** — scoped to a specific instance family and region. Slightly deeper discount but less flexible.
+* **Reserved Instances** (Standard or Convertible) — tied to a specific instance type. Standard RIs give the deepest discount but lock you in firmly. Convertible RIs can be exchanged for a slightly lower discount.
 
 For a Karpenter-managed cluster, **Compute Savings Plans are the better choice**.
 Karpenter shifts workloads across instance families as it optimises — a Savings Plan covers all of that automatically, whereas an RI tied to `m7i.xlarge` is wasted if Karpenter switches to `c7g.xlarge`.
@@ -566,8 +557,7 @@ At scale, it's better to automate this as a periodic check — a Lambda that sca
 
 === Archive to S3 for long-term compliance
 
-If compliance requires keeping logs beyond 90 days, but you don't need to query them in CloudWatch, export to S3 and apply a lifecycle policy to move them to Glacier.
-S3 Glacier storage costs roughly 8–10× less than CloudWatch for the same data.
+If compliance requires keeping logs beyond 90 days, but you don't need to query them in CloudWatch, export to S3 and apply a lifecycle policy to move them to Glacier. S3 Glacier storage costs roughly 8–10× less than CloudWatch for the same data.
 
 Short retention in CloudWatch for live debugging, long-term archive in Glacier for compliance — that combination is almost always cheaper than keeping everything in CloudWatch forever.
 
@@ -576,17 +566,14 @@ Short retention in CloudWatch for live debugging, long-term archive in Glacier f
 All of the above requires knowing where money is actually going.
 AWS has a few built-in tools that surface waste and flag right-sizing opportunities.
 
-**Cost Explorer** is the first place to look.
-It breaks down spend by service, region, account, or tag.
-For EKS the most useful views are daily cost by service (to spot spikes), EC2 usage type (to see the On-Demand vs Spot split), and the Savings Plans recommendations tab.
+**Cost Explorer** is the first place to look. It breaks down spend by service, region, account, or tag. For EKS the most useful views are daily cost by service (to spot spikes), EC2 usage type (to see the On-Demand vs Spot split), and the Savings Plans recommendations tab.
 Tagging is what makes it genuinely useful — apply consistent tags to all cluster resources and activate them as cost allocation tags in the Billing console so you can filter to a specific team or workload.
 
 **Trusted Advisor** runs automated checks across your account and flags idle load balancers, unassociated Elastic IPs, underused EBS volumes, and On-Demand usage that a Savings Plan could cover.
 Cost checks are available on all support plans; the full set requires Business or Enterprise.
 
 **Compute Optimizer** looks at CloudWatch usage data and suggests better-fitting instance types for EC2 and EBS.
-On EKS it's most useful for fixed managed node groups — system add-ons like CoreDNS and kube-proxy that Karpenter doesn't manage.
-It's free to enable but needs at least 14 days of data before making suggestions, so turn it on early.
+On EKS it's most useful for fixed managed node groups — system add-ons like CoreDNS and kube-proxy that Karpenter doesn't manage. It's free to enable but needs at least 14 days of data before making suggestions, so turn it on early.
 
 **Cost Anomaly Detection** uses machine learning to alert you when spend jumps unexpectedly — a misconfigured `NodePool` launching large On-Demand instances, an environment left running over a long weekend, or a sudden spike in S3 access costs.
 Set up a monitor per service category with a dollar threshold so you hear about it before it becomes a big number.

@@ -435,23 +435,35 @@ function showToast(message, icon = "✅") {
 }
 
 function formatAuthors(authors) {
+  // normalise: authors can be resolved objects {name,url} or raw strings
+  const normalised = authors.map(a => typeof a === "string" ? { name: a, url: null } : a);
   // render each name as a link if the author has a url, otherwise plain text
   const fmt = (a) => a.url
     ? `<a href="${a.url}" target="_blank" rel="noopener" class="author-link">${a.name}</a>`
-    : a.name;
+    : (a.name || "");
+  const [first, second, ...rest] = normalised;
+  if (normalised.length === 1) return fmt(first);
+  if (normalised.length === 2) return `${fmt(first)} &amp; ${fmt(second)}`;
+  return normalised.slice(0, -1).map(fmt).join(", ") + " &amp; " + fmt(normalised.at(-1));
   if (authors.length === 1) return fmt(authors[0]);
   if (authors.length === 2) return `${fmt(authors[0])} &amp; ${fmt(authors[1])}`;
   return authors.slice(0, -1).map(fmt).join(", ") + " &amp; " + fmt(authors.at(-1));
 }
 
 function renderAuthors(authors) {
-  const extraMargin = authors.length > 1 ? `style="margin-right:${(authors.length - 1) * 6}px"` : "";
+  // normalise raw strings just in case
+  const normalised = authors.map(a =>
+    typeof a === "string"
+      ? { name: a, url: null, initials: a.trim().split(/\s+/).map(w => w[0].toUpperCase()).join("").slice(0, 2) }
+      : a
+  );
+  const extraMargin = normalised.length > 1 ? `style="margin-right:${(normalised.length - 1) * 6}px"` : "";
   return `
     <div class="avatars" ${extraMargin}>
-      ${authors.map((a) => `<div class="avatar" title="${a.name}">${a.initials}</div>`).join("")}
+      ${normalised.map((a) => `<div class="avatar" title="${a.name}">${a.initials}</div>`).join("")}
     </div>
     <div class="post-meta-info">
-      <span class="post-author">${formatAuthors(authors)}</span>
+      <span class="post-author">${formatAuthors(normalised)}</span>
     </div>
   `;
 }
