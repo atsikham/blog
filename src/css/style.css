@@ -70,7 +70,6 @@ header, main, footer, .modal-overlay, .toast-container { position: relative; z-i
 
 html { scroll-behavior: smooth; }
 
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
