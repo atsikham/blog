@@ -1,4 +1,5 @@
 {
+  "pinnedPostIds": ["2", "3"],
   "globalExcludeTagsFromAbout": ["JavaScript", "Career", "Freelancing", "Upwork", "Personal Story", "Lessons Learned"],
   "globalAuthors": {
     "Anatoli Tsikhamirau": { "url": "https://github.com/atsikham" },
@@ -12,7 +13,7 @@
       "excerpt": "How this blog works: a static frontend on S3 + CloudFront, a small Python Lambda for likes and comments, and the fixes that made refreshes, routing and regression checks feel solid.",
       "authors": ["Anatoli Tsikhamirau"],
       "date": "Mar 31, 2026",
-      "tags": ["AWS", "S3", "CloudFront", "Lambda", "DynamoDB", "Python", "Serverless", "Terraform", "Architecture", "JavaScript", "API Gateway", "GitHub Actions", "CI/CD", "Testing"]
+      "tags": ["AWS", "S3", "CloudFront", "Lambda", "Python", "Serverless", "Terraform", "Architecture", "API Gateway", "CI/CD"]
     },
     {
       "id": "2",
@@ -39,7 +40,7 @@
       "excerpt": "A practical Terraform setup for running WordPress on ECS Fargate with CloudFront, ALB, WAF, Aurora, EFS, SSM secrets, and SFTP uploads via AWS Transfer Family.",
       "authors": ["Anatoli Tsikhamirau"],
       "date": "Apr 6, 2026",
-      "tags": ["AWS", "Terraform", "WordPress", "ECS", "Fargate", "CloudFront", "ALB", "WAF", "Aurora", "EFS", "SSM", "Route 53", "SFTP", "Architecture", "RDS", "Transfer Family"]
+      "tags": ["AWS", "Terraform", "WordPress", "ECS", "Fargate", "CloudFront", "WAF", "Aurora", "EFS", "Architecture"]
     },
     {
       "id": "5",
@@ -48,7 +49,16 @@
       "excerpt": "Practical techniques for cutting the AWS bill on an EKS platform: Karpenter with Spot and consolidation, Graviton instances, PrivateLink, zonal routing to eliminate cross-AZ charges, gp3 EBS, CloudWatch log retention, and leveraging shared org services.",
       "authors": ["Anatoli Tsikhamirau"],
       "date": "Apr 17, 2026",
-      "tags": ["AWS", "EKS", "Kubernetes", "Karpenter", "Cost Optimization", "Spot", "Graviton", "PrivateLink", "Architecture", "Terraform", "Platform Engineering", "NAT Gateway", "EBS", "CloudWatch", "CI/CD", "Trusted Advisor", "Cost Explorer"]
+      "tags": ["AWS", "EKS", "Kubernetes", "Karpenter", "Cost Optimization", "Spot", "Graviton", "Architecture", "Terraform", "Platform Engineering"]
+    },
+    {
+      "id": "6",
+      "file": "rag-slack-bot-on-lambda.adoc",
+      "title": "Ask the bot, skip the ticket — RAG-powered Slack assistant on AWS Lambda",
+      "excerpt": "A concept for a serverless Slack bot that answers questions by searching the docs with RAG and replying in-thread — built on two AWS Lambdas to stay within Slack's 3-second response limit.",
+      "authors": ["Anatoli Tsikhamirau"],
+      "date": "Apr 27, 2026",
+      "tags": ["AWS", "Lambda", "Serverless", "Python", "Slack", "RAG", "GenAI", "Architecture", "Terraform", "LLM"]
     }
   ]
 }

@@ -306,6 +306,7 @@ nav {
   transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
   cursor: pointer;
   box-shadow: var(--shadow);
+  position: relative;
 }
 .post-card:hover {
   transform: translateY(-3px);
@@ -313,9 +314,50 @@ nav {
   box-shadow: var(--shadow-hover);
 }
 
+.post-card-pinned {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent), var(--shadow);
+}
+
+.pinned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin: 14px 22px 0;
+  width: fit-content;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .post-card-header { padding: 22px 22px 0; }
 
-.post-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.post-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+
+.post-tags-hidden { display: none; gap: 6px; flex-wrap: wrap; }
+.post-tags-hidden.post-tags-visible { display: contents; }
+
+.post-tags-expand {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
+  border: 1px dashed var(--primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+.post-tags-expand:hover {
+  background: var(--tag-bg);
+}
 
 .post-tag {
   font-size: 0.72rem;

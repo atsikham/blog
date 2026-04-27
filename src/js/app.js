@@ -289,6 +289,7 @@ async function loadPosts() {
   const globalAuthors = Array.isArray(manifest) ? {} : (manifest.globalAuthors || {});
 
   state.globalExcludeTagsFromAbout = new Set(globalExclude);
+  state.pinnedPostIds = new Set(Array.isArray(manifest) ? [] : (manifest.pinnedPostIds || []));
 
   // Normalise an author entry — can be a plain string or a {name,...} object.
   // Fills initials (first letter of each word, max 2) and url from globalAuthors.
@@ -327,7 +328,7 @@ async function loadPosts() {
 // ============================================================
 
 const POSTS_PER_PAGE = 6;
-const TAGS_VISIBLE = 15;
+const TAGS_VISIBLE = 10;
 
 const state = {
   posts: [],
@@ -338,12 +339,9 @@ const state = {
   scrollYBeforeModal: null,
   currentPaginationPage: 1,
   tagsExpanded: false,
-  // comment threads are collapsed by default; this set tracks the ones the
-  // reader has explicitly expanded in the current modal session.
   expandedCommentThreads: new Set(),
-  // Populated from manifest.globalExcludeTagsFromAbout — tags that are excluded
-  // from the About skills cloud across all posts globally.
   globalExcludeTagsFromAbout: new Set(),
+  pinnedPostIds: new Set(),
 };
 
 // formats large counts the way everyone expects: 999, 1k, 1.2k, 10k, 1m …
@@ -555,6 +553,18 @@ function renderPostGrid() {
     );
   }
 
+  // When no search or tag filter is active, float pinned posts to the top
+  // (preserving their relative order from pinnedPostIds).
+  const isPinnedView = !q && state.activeFilters.size === 0;
+  if (isPinnedView && state.pinnedPostIds.size > 0) {
+    const pinned   = filtered.filter((p) => state.pinnedPostIds.has(p.id));
+    const unpinned = filtered.filter((p) => !state.pinnedPostIds.has(p.id));
+    // Sort pinned by the order they appear in pinnedPostIds
+    const pinOrder = [...state.pinnedPostIds];
+    pinned.sort((a, b) => pinOrder.indexOf(a.id) - pinOrder.indexOf(b.id));
+    filtered = [...pinned, ...unpinned];
+  }
+
   const grid = document.getElementById("postsGrid");
   const count = document.getElementById("resultsCount");
 
@@ -601,6 +611,15 @@ function renderPostGrid() {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       openPost(btn.dataset.id, true);
+    });
+  });
+
+  grid.querySelectorAll(".post-tags-expand").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const hidden = btn.previousElementSibling; // .post-tags-hidden
+      const expanded = hidden.classList.toggle("post-tags-visible");
+      btn.textContent = expanded ? "Show less" : `+${hidden.querySelectorAll(".post-tag").length} more`;
     });
   });
 
@@ -652,13 +671,27 @@ function renderPostCard(post) {
   const liked        = Storage.isLiked(post.id);
   const commentCount = Storage.getComments(post.id).length;
   const readCount    = Storage.getReads(post.id);
+  const isPinned     = state.pinnedPostIds.has(post.id);
+
+  const TAGS_LIMIT = 5;
+  const visibleTags = post.tags.slice(0, TAGS_LIMIT);
+  const hiddenTags  = post.tags.slice(TAGS_LIMIT);
+
+  const tagsHtml = `
+    ${visibleTags.map((t) => `<span class="post-tag">${t}</span>`).join("")}
+    ${hiddenTags.length ? `
+      <span class="post-tags-hidden">
+        ${hiddenTags.map((t) => `<span class="post-tag">${t}</span>`).join("")}
+      </span>
+      <button class="post-tags-expand" aria-label="Show all tags">+${hiddenTags.length} more</button>
+    ` : ""}
+  `;
 
   return `
-    <article class="post-card" data-id="${post.id}" tabindex="0" role="button" aria-label="Read ${post.title}">
+    <article class="post-card${isPinned ? " post-card-pinned" : ""}" data-id="${post.id}" tabindex="0" role="button" aria-label="Read ${post.title}">
+      ${isPinned ? `<div class="pinned-badge" title="Featured post">📌 Featured</div>` : ""}
       <div class="post-card-header">
-        <div class="post-tags">
-          ${post.tags.map((t) => `<span class="post-tag">${t}</span>`).join("")}
-        </div>
+        <div class="post-tags">${tagsHtml}</div>
         <h2 class="post-title">${post.title}</h2>
         <p class="post-excerpt">${post.excerpt}</p>
       </div>
