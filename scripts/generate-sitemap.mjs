@@ -3,7 +3,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd());
 const MANIFEST = path.join(ROOT, 'src/posts/manifest.json');
-const OUT = path.join(ROOT, 'src/sitemap.xml');
+const OUT = path.join(ROOT, 'sitemap.xml');
 
 const siteOrigin = process.env.SITE_ORIGIN || 'https://tikho.me';
 
@@ -21,7 +21,7 @@ const posts = Array.isArray(manifest) ? manifest : (manifest.posts || []);
 
 const urls = [
   `${siteOrigin}/`,
-  `${siteOrigin}/#about`,
+  `${siteOrigin}/about.html`,
   ...posts.map((p) => `${siteOrigin}/posts/${encodeURIComponent(p.id)}.html`),
 ];
 

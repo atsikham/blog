@@ -89,7 +89,13 @@ const resolveAuthor = (a) => {
   return { name, url: (typeof a === "object" && a.url) || global.url || null };
 };
 
-const baseIndex = await readFile(INDEX, 'utf8');
+let baseIndex = await readFile(INDEX, 'utf8');
+
+// Fix all relative asset paths so the page works from /posts/*.html
+// (otherwise src/css, src/js, src/posts/… would resolve to /posts/src/… = 404)
+baseIndex = baseIndex
+  .replace(/(href|src)="src\//g, '$1="/src/')
+  .replace(/(href|src)="([^/"#][^"]*\.(css|js|svg|png|jpg|ico|webmanifest))"/g, '$1="/$2"');
 
 await mkdir(OUT_DIR, { recursive: true });
 
@@ -100,14 +106,11 @@ for (const post of posts) {
 
   let html = baseIndex;
 
-  // Redirect to the root SPA with the post hash.
-  // Running the SPA from /posts/1.html breaks all relative asset paths
-  // (src/css, src/js, src/posts/… would resolve to /posts/src/… = 404).
-  // location.replace fires before any asset loads and keeps history clean
-  // (the back button won't loop back to /posts/1.html).
+  // Pre-set the hash so the SPA boots directly into the correct post.
+  // No redirect — the page IS the canonical URL so Googlebot can index it.
   const postHash = `post-${encodeURIComponent(post.id)}`;
   html = html.replace(/<head>/i,
-    `<head>\n<script>location.replace('/#${postHash}');</script>`
+    `<head>\n<script>if(!location.hash)location.hash='${postHash}';</script>`
   );
   html = setTitle(html, title);
   html = setMetaTag(html, { attr: 'name', key: 'description', content: desc });
@@ -125,6 +128,49 @@ for (const post of posts) {
 
   const outPath = path.join(OUT_DIR, `${post.id}.html`);
   await writeFile(outPath, html, 'utf8');
+}
+
+// ── Prerender /about.html ─────────────────────────────────────
+{
+  const url = `${siteOrigin}/about.html`;
+  const title = 'About | tikho.me';
+  const desc = 'Anatoli Tsikhamirau — platform engineer. Working on Kubernetes, AWS, and internal developer platforms.';
+
+  let html = baseIndex;
+
+  // Boot SPA directly into the about page — no redirect
+  html = html.replace(/<head>/i,
+    `<head>\n<script>if(!location.hash)location.hash='about';</script>`
+  );
+  html = setTitle(html, title);
+  html = setMetaTag(html, { attr: 'name', key: 'description', content: desc });
+  html = setLinkCanonical(html, url);
+
+  html = setMetaTag(html, { attr: 'property', key: 'og:type', content: 'profile' });
+  html = setMetaTag(html, { attr: 'property', key: 'og:url', content: url });
+  html = setMetaTag(html, { attr: 'property', key: 'og:title', content: title });
+  html = setMetaTag(html, { attr: 'property', key: 'og:description', content: desc });
+
+  html = setMetaTag(html, { attr: 'name', key: 'twitter:title', content: title });
+  html = setMetaTag(html, { attr: 'name', key: 'twitter:description', content: desc });
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    mainEntity: {
+      '@type': 'Person',
+      name: 'Anatoli Tsikhamirau',
+      jobTitle: 'Platform Engineer',
+      url: `${siteOrigin}/about.html`,
+      sameAs: [
+        'https://github.com/atsikham',
+        'https://www.linkedin.com/in/anatoli-tsikhamirau/',
+      ],
+    },
+  };
+  html = setJsonLd(html, jsonLd);
+
+  await writeFile(path.join(ROOT, 'about.html'), html, 'utf8');
 }
 
 console.log(`wrote ${posts.length} prerendered pages to ${OUT_DIR}`);

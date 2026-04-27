@@ -101,6 +101,9 @@ jobs:
           aws s3 cp index.html s3://${{ secrets.S3_BUCKET }}/index.html \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html; charset=utf-8"
+          aws s3 cp about.html s3://${{ secrets.S3_BUCKET }}/about.html \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
 
       - name: upload prerendered post pages
         run: |
@@ -113,7 +116,7 @@ jobs:
           aws s3 cp src/robots.txt s3://${{ secrets.S3_BUCKET }}/robots.txt \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/plain; charset=utf-8"
-          aws s3 cp src/sitemap.xml s3://${{ secrets.S3_BUCKET }}/sitemap.xml \
+          aws s3 cp sitemap.xml s3://${{ secrets.S3_BUCKET }}/sitemap.xml \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "application/xml; charset=utf-8"
 

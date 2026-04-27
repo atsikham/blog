@@ -271,16 +271,16 @@ function parseContent(text, filename) {
     ? parseAsciidoc(text)
     : parseMarkdown(text);
 
-  // img src paths in posts are relative to src/posts/ but the page is served
-  // from the root, so rewrite relative paths to include the posts directory
+  // img src paths in posts are relative to src/posts/ — rewrite to root-relative
+  // so they resolve correctly from any URL depth (/, /posts/1.html, etc.)
   return html.replace(/(<img\b[^>]*?\bsrc=")(?!https?:\/\/|\/|data:)([^"]+)"/g,
-    (_, prefix, src) => `${prefix}src/posts/${src}"`
+    (_, prefix, src) => `${prefix}/src/posts/${src}"`
   );
 }
 
 // ── Load posts from manifest + content files ─────────────────
 async function loadPosts() {
-  const manifestRes = await fetch("src/posts/manifest.json");
+  const manifestRes = await fetch("/src/posts/manifest.json");
   const manifest = await manifestRes.json();
 
   // The manifest can be the new object shape or the older bare array.
@@ -304,7 +304,7 @@ async function loadPosts() {
 
   return Promise.all(
     postMetas.map(async (meta) => {
-      const res  = await fetch(`src/posts/${meta.file}`);
+      const res  = await fetch(`/src/posts/${meta.file}`);
       const text = await res.text();
       const content = parseContent(text, meta.file);
 
