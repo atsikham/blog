@@ -7,16 +7,6 @@ No framework, no build step.
 Vanilla HTML/CSS/JS frontend served from S3 + CloudFront, a small Python Lambda on API Gateway for likes, reads and comments, DynamoDB as the backing store.
 Posts are AsciiDoc or Markdown files — the parser runs in the browser.
 
-== SEO (Lighthouse 100 for articles)
-
-Because this is a SPA, hash-only routes (e.g. `/#post-1`) can fail SEO audits in tools/crawlers that don't execute JavaScript.
-To make Lighthouse SEO score 100 reliably per article, the repo generates prerendered HTML entrypoints:
-
-* `posts/{id}.html` — static HTML file with full `<title>`, `<meta>` tags and JSON-LD already present
-* when opened, that page sets `location.hash = post-{id}` and then loads the same SPA
-
-Sitemap entries also use these prerendered URLs.
-
 == how it works
 
 The frontend fetches `src/posts/manifest.json` on load, then pulls each post file on demand.
