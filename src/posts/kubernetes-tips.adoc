@@ -1,0 +1,272 @@
+= K8s tips I always come back to
+
+Things I've learned the hard way or found genuinely useful.
+Not a tutorial — just notes I'd want to have handy.
+
+== 1. Handling SIGTERM with a preStop hook when application ignores it
+
+Kubernetes sends `SIGTERM` to the main container process and waits `terminationGracePeriodSeconds` (default 30s) before sending `SIGKILL`.
+Many apps don't handle `SIGTERM`, so it's possible to use a `preStop` hook to handle it without modifying the app itself:
+
+[source,yaml]
+----
+lifecycle:
+  preStop:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - "nginx -s quit && sleep 5"
+----
+
+`preStop` completes first, then Kubernetes sends `SIGTERM`.
+
+=== TIP: Shell form in Dockerfile swallows SIGTERM
+
+[source,dockerfile]
+----
+# Exec form — myapp is the main process, gets SIGTERM directly
+ENTRYPOINT ["myapp", "--config", "/etc/myapp/config.yaml"]
+
+# Shell form — /bin/sh is the main process, SIGTERM never reaches myapp
+ENTRYPOINT myapp --config /etc/myapp/config.yaml
+----
+
+Exec form is safer here because the process runs directly, not as a child of `sh` — so signals sent by Kubernetes actually reach it.
+
+== 2. Blocking network traffic by namespace with a Calico global policy
+
+`GlobalNetworkPolicy` applies cluster-wide, not just within one namespace.
+Useful for platform-level enforcement.
+
+[source,yaml]
+----
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: force-block-all-traffic
+spec:
+  egress:
+  - action: Deny
+  ingress:
+  - action: Deny
+  namespaceSelector: force-block-all-traffic == 'true'
+  order: -1
+  types:
+  - Ingress
+  - Egress
+----
+
+[source,bash]
+----
+kubectl label namespace team-ns force-block-all-traffic=true
+----
+
+== 3. Debugging pods with kubectl debug and ephemeral containers
+
+Distroless and scratch images have no shell, so `kubectl exec` won't work.
+`kubectl debug` injects an ephemeral container with its own image into the running pod:
+
+[source,bash]
+----
+kubectl debug -it my-pod \
+  --image=nicolaka/netshoot \
+  --target=my-container \
+  -- bash
+----
+
+`--target` shares the process namespace — you can `ps`, `strace`, inspect `/proc`.
+
+== 4. DNS: when ndots matters
+
+Every pod gets its `resolv.conf`:
+
+[source]
+----
+nameserver 10.96.0.10
+search default.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+----
+
+If a hostname has fewer than 5 dots, the resolver appends each search domain before trying the name as-is.
+For `api.example.com` (2 dots), that means 3 failed queries before it resolves correctly — every time.
+
+Append a trailing dot to force absolute resolution:
+
+[source]
+----
+https://api.example.com./v1/...
+----
+
+Or tune per pod:
+
+[source,yaml]
+----
+spec:
+  dnsConfig:
+    options:
+      - name: ndots
+        value: "2"
+----
+
+Reducing `ndots` cluster-wide can break short in-cluster names that rely on the search path — per-pod tuning is safer.
+
+== 5. kubectl plugins with Krew
+
+Any binary named `kubectl-something` on your `PATH` becomes `kubectl something`.
+Krew is the package manager — https://krew.sigs.k8s.io/docs/user-guide/setup/install/[install it], then:
+
+[source,bash]
+----
+kubectl krew search
+kubectl krew install <plugin>
+----
+
+Plugin examples:
+
+[cols="1,2",options="header"]
+|===
+| Plugin | What it does
+
+| `neat`
+| Strips managed fields and defaults from YAML output — what you actually want when exporting resources.
+
+| `ctx` / `ns`
+| Switch contexts and namespaces interactively.
+
+| `whoami`
+| Which identity the current kubeconfig is authenticated as.
+|===
+
+== 6. Remove a controller without removing its pods
+
+Some `StatefulSet` fields are immutable after creation, eg `podManagementPolicy`.
+Deleting the `StatefulSet` normally also deletes pods and PVCs.
+
+Use `--cascade=orphan` to delete only the controller:
+
+[source,bash]
+----
+kubectl delete statefulset my-statefulset --cascade=orphan
+----
+
+Pods keep running unmanaged. Apply the updated spec:
+
+[source,bash]
+----
+kubectl apply -f my-statefulset-updated.yaml
+----
+
+Kubernetes adopts the existing pods if they match the new selector. No restarts, no downtime.
+
+Caveats:
+* Between delete and apply, pods have no owner — crashes won't be restarted.
+* If the new selector doesn't match existing pods, Kubernetes will create new ones alongside them.
+* Works for `Deployment` and `DaemonSet` too.
+
+== 7. kubectl get -o jsonpath instead of piping to jq
+
+`jq` shows up even in https://www.manning.com/books/kubernetes-in-action-second-edition[Kubernetes in Action, 2nd edition] but `kubectl` has `jsonpath` built in.
+
+[source,bash]
+----
+# decode a secret value
+kubectl get secret my-secret \
+  -o jsonpath='{.data.password}' | base64 --decode
+----
+
+For simple extraction, `jsonpath` keeps things self-contained.
+
+== 8. Volume snapshots to work around EBS resize limitations
+
+AWS EBS allows up to four modifications per EBS volume within a rolling 24-hour window.
+Reducing size is not supported at all via in-place expansion.
+
+Snapshot-and-restore works around both:
+
+=== Step 1: Snapshot the existing volume with the following configuration
+
+[source,yaml]
+----
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: my-pvc-snapshot
+  namespace: my-app
+spec:
+  volumeSnapshotClassName: csi-aws-vsc
+  source:
+    persistentVolumeClaimName: my-pvc
+----
+
+=== Step 2: Restore at the new size
+
+[source,yaml]
+----
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc-resized
+  namespace: my-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: gp3
+
+  dataSource:
+    name: my-pvc-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+----
+
+=== Step 3: Switch the workload
+
+Update `Deployment` or `StatefulSet` to use the new PVC and roll out.
+
+== 9. Native sidecar containers
+
+Since Kubernetes 1.29, sidecars can be defined as init containers with `restartPolicy: Always`.
+This makes Kubernetes treat them as long-running sidecars rather than one-shot init steps — they start before the main containers and are kept alive for the lifetime of the pod.
+
+[source,yaml]
+----
+initContainers:
+  - name: log-shipper
+    image: fluent/fluent-bit:latest
+    restartPolicy: Always   # this is what makes it a sidecar
+----
+
+Before this, sidecars were just regular containers with no ordering guarantees — the main container could start before the sidecar was ready, and during pod shutdown the sidecar could be killed before the main container finished flushing.
+
+With native sidecars:
+* They start before `containers` and are ready before the main container starts.
+* During shutdown, they're terminated after the main container exits.
+* They're restarted independently if they crash, without restarting the whole pod.
+* They count toward the pod's `restartPolicy` — a sidecar crash doesn't mark the pod as failed.
+
+Particularly useful for log shippers, proxies, and secret rotation agents that need to be reliably present for the full pod lifecycle.
+
+== 10. Guaranteed QoS prevents pod eviction
+
+When the node is under memory pressure, Kubernetes evicts pods based on their QoS class — `BestEffort` first, then `Burstable`, and `Guaranteed` last.
+
+A pod gets `Guaranteed` QoS only when every container in the pod has both `requests` and `limits` set, and they are equal:
+
+[source,yaml]
+----
+resources:
+  requests:
+    cpu: "500m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+----
+
+If even one container is missing requests or limits, the whole pod drops to `Burstable` or `BestEffort`.
+This includes init containers and sidecars.
+
+`Guaranteed` pods are the last to be evicted when a noisy neighbour exhausts node memory.
