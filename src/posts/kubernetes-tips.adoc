@@ -57,6 +57,8 @@ spec:
   - Egress
 ----
 
+and then just use it:
+
 [source,bash]
 ----
 kubectl label namespace team-ns force-block-all-traffic=true
@@ -166,7 +168,7 @@ Caveats:
 
 == 7. kubectl get -o jsonpath instead of piping to jq
 
-`jq` shows up even in https://www.manning.com/books/kubernetes-in-action-second-edition[Kubernetes in Action, 2nd edition] but `kubectl` has `jsonpath` built in.
+`jq` shows up even in https://www.manning.com/books/kubernetes-in-action-second-edition[Kubernetes in Action, 2nd edition], but `kubectl` has `jsonpath` built in.
 
 [source,bash]
 ----

@@ -1327,6 +1327,9 @@ async function submitComment(postId) {
 //
 // Prerendered pages inject a JS variable instead of mutating location.hash so
 // Googlebot sees the clean canonical URL without a fragment.
+// As a fallback, the pathname is also checked — this covers the case where
+// CloudFront's 404→index.html redirect serves the SPA without the variable
+// (e.g. when a post page hasn't been deployed to S3 yet).
 
 function parseHash() {
   // Prerendered post page: variable set by inline <script> in <head>.
@@ -1339,6 +1342,15 @@ function parseHash() {
   // Prerendered about page
   if (window.__PRERENDER_PAGE__ === "about") {
     delete window.__PRERENDER_PAGE__;
+    return { page: "about", postId: null };
+  }
+  // Pathname fallback — catches CloudFront 404→index.html redirect where the
+  // inline variable is absent but the original URL path is preserved.
+  const pathMatch = window.location.pathname.match(/\/posts\/([^/]+)\.html$/);
+  if (pathMatch) {
+    return { page: "home", postId: decodeURIComponent(pathMatch[1]) };
+  }
+  if (window.location.pathname === "/about.html") {
     return { page: "about", postId: null };
   }
   // Normal hash-based routing from the home SPA
