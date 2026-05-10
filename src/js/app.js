@@ -1318,15 +1318,30 @@ async function submitComment(postId) {
 //  Page Navigation
 // ============================================================
 
-// Hash format:
-//   #about          → about page
-//   #post-{id}      → home page with post {id} open
-//   (empty)         → home page
+// URL routing:
+//   /posts/{id}.html  → prerendered page; SPA reads window.__PRERENDER_POST_ID__
+//   /about.html       → prerendered page; SPA reads window.__PRERENDER_PAGE__
+//   #about            → about page (hash-based, home SPA)
+//   #post-{id}        → home SPA with post {id} open
+//   (empty)           → home page
 //
-// Encoding the open post in the URL hash means a page refresh restores the
-// exact same state — the user stays on the post they were reading.
+// Prerendered pages inject a JS variable instead of mutating location.hash so
+// Googlebot sees the clean canonical URL without a fragment.
 
 function parseHash() {
+  // Prerendered post page: variable set by inline <script> in <head>.
+  // Read and clear immediately so subsequent hash navigation isn't affected.
+  if (window.__PRERENDER_POST_ID__) {
+    const id = decodeURIComponent(window.__PRERENDER_POST_ID__);
+    delete window.__PRERENDER_POST_ID__;
+    return { page: "home", postId: id };
+  }
+  // Prerendered about page
+  if (window.__PRERENDER_PAGE__ === "about") {
+    delete window.__PRERENDER_PAGE__;
+    return { page: "about", postId: null };
+  }
+  // Normal hash-based routing from the home SPA
   const hash = window.location.hash.replace("#", "").trim();
   if (hash === "about") return { page: "about", postId: null };
   if (hash.startsWith("post-")) {

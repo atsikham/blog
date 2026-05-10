@@ -1,5 +1,5 @@
 {
-  "pinnedPostIds": ["2", "3"],
+  "pinnedPostIds": ["2", "5"],
   "globalExcludeTagsFromAbout": ["JavaScript", "Career", "Freelancing", "Upwork", "Personal Story", "Lessons Learned"],
   "globalAuthors": {
     "Anatoli Tsikhamirau": { "url": "https://github.com/atsikham" },
@@ -59,6 +59,15 @@
       "authors": ["Anatoli Tsikhamirau"],
       "date": "Apr 27, 2026",
       "tags": ["AWS", "Lambda", "Serverless", "Python", "Slack", "RAG", "GenAI", "Architecture", "Terraform", "LLM"]
+    },
+    {
+      "id": "7",
+      "file": "kubernetes-tips.adoc",
+      "title": "K8s tips I always come back to",
+      "excerpt": "A personal collection of Kubernetes tips from the field — preStop hooks and SIGTERM handling, Calico global policies, ephemeral debug containers, ndots DNS quirks, StatefulSet orphaning, jsonpath over jq, VolumeSnapshot resize workarounds, native sidecars, and Guaranteed QoS.",
+      "authors": ["Anatoli Tsikhamirau"],
+      "date": "May 10, 2026",
+      "tags": ["Kubernetes", "DevOps", "Platform Engineering", "EKS", "Tips"]
     }
   ]
 }

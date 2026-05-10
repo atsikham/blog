@@ -466,8 +466,23 @@ The benefits are simple:
 
 === CI/CD pipelines
 
-If your organisation runs a shared CI/CD platform, use it instead of running your own runners.
+When applicable, teams should use the organisation's shared CI/CD platform instead of running their own runners.
 A shared platform spreads fixed costs across the whole organisation, so each team pays far less per build minute.
+
+=== Shared DNS resolver across accounts
+
+Multi-account platforms where each account runs its own Route 53 Resolver endpoints pay for them independently — $0.125/hour per endpoint ENI, plus $0.40/million queries.
+With a dozen accounts, that baseline cost multiplies quickly even before any queries are made.
+
+A better pattern is a centralised resolver in a shared networking account (or the hub VPC in a hub-and-spoke topology), shared via AWS Resource Access Manager (RAM):
+
+* One set of inbound/outbound resolver endpoints lives in the hub VPC.
+* Spoke account VPCs route DNS queries to the hub resolver via VPC peering or Transit Gateway — no resolver endpoints of their own are needed.
+* Private hosted zones in spoke accounts are associated with the hub VPC so all accounts can resolve them.
+
+Spoke accounts accept the shared rule and associate it with their VPCs — no endpoints required on their side.
+
+The savings scale with the number of accounts: ten accounts sharing one resolver pair instead of running their own cuts resolver endpoint cost by roughly 90%, and centralises DNS forwarding rules so there is one place to update them.
 
 === Observability: don't forward everything
 
@@ -650,14 +665,18 @@ They can be rolled out one at a time, roughly in order of impact:
 | Eliminate idle runner nodes
 
 | 17
+| Shared DNS resolver across accounts
+| Reduction in Route 53 Resolver endpoint cost on multi-account platforms
+
+| 18
 | Metrics cardinality reduction
 | Reduce observability platform per-series cost
 
-| 18
+| 19
 | CloudWatch log group retention (30–90 days) + S3 Glacier archive
 | Eliminate indefinite log storage cost
 
-| 19
+| 20
 | Enable Cost Explorer tags, Trusted Advisor, Compute Optimizer, Cost Anomaly Detection
 | Continuously surface waste and catch unexpected spend spikes early
 |===

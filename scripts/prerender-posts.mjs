@@ -106,11 +106,12 @@ for (const post of posts) {
 
   let html = baseIndex;
 
-  // Pre-set the hash so the SPA boots directly into the correct post.
-  // No redirect — the page IS the canonical URL so Googlebot can index it.
-  const postHash = `post-${encodeURIComponent(post.id)}`;
+  // Tell the SPA which post to open without touching location.hash.
+  // Mutating location.hash appends #post-N to the URL — Googlebot ignores
+  // everything after # so the post content would never be indexed.
+  // A plain JS variable keeps the URL clean: /posts/1.html stays /posts/1.html.
   html = html.replace(/<head>/i,
-    `<head>\n<script>if(!location.hash)location.hash='${postHash}';</script>`
+    `<head>\n<script>window.__PRERENDER_POST_ID__='${encodeURIComponent(post.id)}';</script>`
   );
   html = setTitle(html, title);
   html = setMetaTag(html, { attr: 'name', key: 'description', content: desc });
@@ -138,9 +139,9 @@ for (const post of posts) {
 
   let html = baseIndex;
 
-  // Boot SPA directly into the about page — no redirect
+  // Same as post pages — avoid location.hash mutation so the URL stays clean
   html = html.replace(/<head>/i,
-    `<head>\n<script>if(!location.hash)location.hash='about';</script>`
+    `<head>\n<script>window.__PRERENDER_PAGE__='about';</script>`
   );
   html = setTitle(html, title);
   html = setMetaTag(html, { attr: 'name', key: 'description', content: desc });
